@@ -14,6 +14,7 @@ means = c()
 sds = c()
 sequence = seq(from=10, to=10000, by=10)
 
+set.seed(12345)
 for (i in sequence){
   points = rbeta(n=i, shape1=post_alpha, shape2=post_beta)
   new_mean = mean(points)
@@ -34,13 +35,14 @@ NDraw = 10000
 set.seed(12345)
 drawns = rbeta(n=NDraw, shape1 = post_alpha, shape2 = post_beta)
 prob = sum(drawns > 0.3)/ NDraw
+set.seed(12345)
 true_prob3 = 1-pbeta(0.3, shape1 = post_alpha, shape2 = post_beta)
 data.frame(Post_probability = prob, Exact_value = true_prob3, Difference_in_Percent = abs(prob - true_prob3)*100/true_prob3)
 ### difference in percentage is less than 0.5% ---- two values are very close to each other
 
 ## 1-c.
-### ask question ----- dont understand the question
-
+log_odds = log(drawns/(1-drawns))
+hist(log_odds, xlab="log_odd values")
 
 
 # Question 2
