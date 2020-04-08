@@ -70,7 +70,19 @@ g_coeffs = (2*pnorm(sqrt(sigmas), mean=0, sd=1)) -1
 hist(g_coeffs, main="Histogram of Gini Coefficients from Simulation", xlab="Simulated Gini-coefficients")
 
 ## 2-c.
-
+## 90% equal tail credible interval
+g_coeffs_sorted = sort(g_coeffs)
+a = g_coeffs_sorted[10000*0.05]
+b = g_coeffs_sorted[10000*0.95]
+cat("90% equal tail credible interval is:", "\n")
+c(a,b)
+## kernel density estimate to compute 90% HPD interval
+d_est <- density(g_coeffs_sorted)
+sim_dens <- cumsum(d_est$y)/sum(d_est$y)
+lower <- which(sim_dens>=0.05)[1]
+upper <- which(sim_dens>=0.95)[1]
+d_est$x[c(lower,upper)]
+##compare two intervals-- HPD has wider interval
 
 
 # Question 3
