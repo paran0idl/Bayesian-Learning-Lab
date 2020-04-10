@@ -1,7 +1,7 @@
 ---
 title:  |
         | Computer Lab 1
-        | 732A54/ - Bayesian Learning
+        | 732A54 - Bayesian Learning
 
 author: | 
         | Jooyoung Lee - ```joole336```
