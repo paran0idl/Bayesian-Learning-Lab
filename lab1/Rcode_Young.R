@@ -66,7 +66,7 @@ data.frame(Simulation_Mean=mean(sigmas), Theoretical_Sigmasq = theoretical_val, 
 
 
 ## 2-b.
-g_coeffs = (2*pnorm(sqrt(sigmas), mean=0, sd=1)) -1
+g_coeffs = (2*pnorm(sigmas/sqrt(2), mean=0, sd=1)) -1
 hist(g_coeffs, main="Histogram of Gini Coefficients from Simulation", xlab="Simulated Gini-coefficients")
 
 ## 2-c.
@@ -88,4 +88,22 @@ d_est$x[c(lower,upper)]
 # Question 3
 degrees = c(40, 303, 326, 285, 296, 314, 20, 308, 299, 296)
 radians = c(-2.44, 2.14, 2.54, 1.83, 2.02, 2.33, -2.79, 2.23, 2.07, 2.02)
+n3 = length(radians)
+known_mu = 2.39
 ## 3-a.
+post_dist = function(kappa){
+  res = exp((kappa*sum(cos(radians-known_mu))) - kappa) / (besselI(kappa, nu=0)^n3)
+  return(res)
+}
+integrated = integrate(post_dist, lower=0, upper=20)
+kappa_range = seq(0, 20, by=0.05)
+plot(kappa_range, post_dist(kappa_range)/integrated$value, main="Posterior Distribution", xlab="Kappa", ylab="Density")
+lines(kappa_range, post_dist(kappa_range)/integrated$value, col="red", lwd=2)
+legend("topright", legend = "Posterior Distribution", col="red", lty=1)
+
+## 3-b.
+# definition of mode: the most frequent observation (to be more accurate in the report)
+# therefore, the maximum value of density in posterior distribution will be equivelant to mode
+cat("Approximate mode of K is: ", "\n")
+kappa_range[which.max(post_dist(kappa_range))]
+## division using constant is not needed because such division does not affect the result
