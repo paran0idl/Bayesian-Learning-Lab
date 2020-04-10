@@ -54,11 +54,11 @@ cat("\ntrue standard deviation=",sqrt(true_var))
 
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
-ggplot()+geom_point(aes(x=seq(10,10000,10),y=means))+geom_hline(yintercept=true_mean,col="red")+xlab("X")+ylab("Mean")+ggtitle("Posterior mean with increasing number of random draws")
-ggplot()+geom_point(aes(x=seq(10,10000,10),y=stds))+geom_hline(yintercept = sqrt(true_var),col="red")+xlab("X")+ylab("Standard Deviation")+ggtitle("Posterior standard deviation with increasing number of random draws")
+ggplot()+geom_point(aes(x=seq(10,10000,10),y=means))+geom_hline(yintercept=true_mean,col="red")+xlab("Number of Draws")+ylab("Mean")+ggtitle("Posterior mean with increasing number of random draws")
+ggplot()+geom_point(aes(x=seq(10,10000,10),y=stds))+geom_hline(yintercept = sqrt(true_var),col="red")+xlab("Number of Draws")+ylab("Standard Deviation")+ggtitle("Posterior standard deviation with increasing number of random draws")
 ```
 
-As we can see from the plots above, for both mean and stanard deviation, at first the values are distributed around two side of the red line. But as the number of random draws grows, the posterior mean and standard deviation converges to the red line, which is the true mean and stanard deviation in this case.
+As we can see from the plots above, for both mean and stanard deviation, at first the values are distributed around two side of the red line - which represents the true value. But as the number of random draws grows, the posterior mean and standard deviation converge to the red line, which is the true mean and true stanard deviation based on numerical calculation using the posterior distribution.
 
 
 (b) Use simulation (nDraws = 10000) to compute the posterior probability $Pr(\theta>0.3|y)$ and compare with the exact value [Hint: pbeta()].
@@ -71,7 +71,8 @@ true_prob=1-pbeta(0.3,true_a,true_beta)
 cat("sample prob=",sample_prob)
 cat("\ntrue prob=",true_prob)
 ```
-We use the $\alpha$ and $\beta$ from (a) with function rbeta(), generated 10000 draws. Then get the number of thetas which are greater than 0.3 and divided by the total number. Using pbeta() to get the true probability.
+
+We use the $\alpha$ and $\beta$ from (a) with function rbeta(), generated 10000 draws. Then get the number of thetas which are greater than 0.3 and divided by the total number. Function pbeta() is utilized to get the true probability.
 
 
 (c) Compute the posterior distribution of the log-odds $\phi=log\frac{\theta}{1-\theta}$ by simulation (nDraws = 10000). [Hint: hist() and density() might come in handy].
@@ -95,7 +96,7 @@ for $y>0,\mu>0,\sigma^2>0$ The log-normal distribution is related to the
 normal distribution as follows: if $y~\log N(\mu,\sigma^2)$ then $\log~N(\mu,\sigma^2)$. Let $y_1,\cdots,y_n|\mu,\sigma^{2} ~ \log(\mu,\sigma^2)$, where $\mu=3.7$ is assumed to be known but $\sigma^2$ is unknown with non-informative prior $p(\sigma^2) \propto 1/\sigma^2$. The posterior for $\sigma^2$ is the $Inv-\chi^2(n,\tau^2)$ distribution, where
 $$\tau^2=\frac{\sum_{i=1}^{n}(\log y_i-\mu)^2}{n}$$
  
-(a) Simulate 10; 000 draws from the posterior of $\sigma^2$ (assuming $\mu=3.7$) and compare with the theoretical $Inv-\chi^2(n,\tau^2)$ posterior distribution.
+(a) Simulate 10,000 draws from the posterior of $\sigma^2$ (assuming $\mu=3.7$) and compare with the theoretical $Inv-\chi^2(n,\tau^2)$ posterior distribution.
 
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 y = c(44,25,45,52, 30, 63, 19, 50, 34, 67)
@@ -107,12 +108,13 @@ tausq = sum((log_y - mu)^2)/n
 sigmas = rinvchisq(n=10000, nu=n, tau = tausq)
 plot(x=1:10000, y=sigmas, main="Comparing Simulated Values and Real Value", xlab="Trial", ylab="Simulated Sigma-Squared")
 theoretical_val=n*tausq/(n-2)
-abline(h=theoretical_val, col="red")
+abline(h=theoretical_val, col="red", lwd = 2)
+legend("topright", legend = "Theoretical Sigma-Squared", col="red", lty=1, lwd=2)
 df=data.frame(Simulation_Mean=mean(sigmas), Theoretical_Sigmasq = theoretical_val, Difference_in_Percentage = abs(mean(sigmas)-theoretical_val)*100/theoretical_val)
 print(df)
 ```
 
-Difference between simulated mean and theoretical value in percentage is less than 1% ... very close values
+Difference between mean of simulated sigma-squared values and theoretical value of sigma-squared in percentage is less than 1%. 
 
 (b) The most common measure of income inequality is the Gini coefficient, G, where $0\leqslant G\leqslant1$. $G=0$ means a completely equal income distribution, whereas $G=1$ means complete income inequality. See Wikipedia for more information. It can be shown that $G=2\Phi(\sigma/\sqrt{2})-1$ when incomes follow a $\log N(\mu,\sigma^2)$distribution.$\Phi(z)$is the cumulative distribution function (CDF) for the standard normal distribution with mean zero and unit variance. Use the posterior draws in a) to compute the posterior distribution of the Gini coefficient G for the current data set.
 
@@ -121,7 +123,7 @@ g_coeffs = 2*pnorm(sigmas/sqrt(2)) -1
 hist(g_coeffs, main="Histogram of Gini Coefficients from Simulation", xlab="Simulated Gini-coefficients")
 ```
 
-By generating 10000 draws and plotting the result, we can observe that the simulated Gini-coefficients are distributed around 0 to 0.4, which indicates this sample represents income inequality.
+By generating 10000 draws and plotting the result, we can observe that the simulated Gini-coefficients are distributed mostly in range of 0 to 0.4, which indicates this sample represents income inequality.
 
 (c) Use the posterior draws from b) to compute a 90% equal tail credible interval for G. A 90% equal tail interval (a; b) cuts off 5% percent of the posterior probability mass to the left of a, and 5% to the right of b. Also, do a kernel density estimate of the posterior of G using the density function in R with default settings, and use that kernel density estimate to compute a 90% Highest Posterior Density interval for G. Compare the two intervals.
 
@@ -133,16 +135,20 @@ cat("90% equal tail credible interval is:", "\n")
 c(a,b)
 
 # HPD
-d=density(g_coeffs)
+d=density(g_coeffs_sorted)
 sim_dens=cumsum(d$y)/sum(d$y)
 lower <- which(sim_dens>=0.05)[1]
 upper <- which(sim_dens>=0.95)[1]
 cat("90% Highest Posterior Density interval is:", "\n")
 HPD=d$x[c(lower,upper)]
+print(HPD)
 
 ggplot()+geom_density(aes(x=g_coeffs))+geom_vline(xintercept =a,col="red",size=0.01)+geom_vline(xintercept = b,col="red",size=0.01)+geom_vline(xintercept =HPD[1],col="blue",size=0.01)+geom_vline(xintercept = HPD[2],col="blue",size=0.01)
 ```
-We can find that in this case, HPD has a wider interval comparing to ETI
+
+ We can find that in this case, HPD has a wider interval comparing to ETI.
+ 
+ By definition, HPD interval includes all values of x "for which the density is at least as big as some value W".(Kruschke, J. K. (2015). Doing Bayesian data analysis: a tutorial with R, Jags, and Stan. Amsterdam: Elsevier/AP.) Therefore it is expected that the end points of the interval to have the same density if the distribution is continuous. However, since we are using simulated data, which are discrete points, it does make sense that the end points of the HPD interval have different probability density to each other.
 
 
 3. Bayesian inference for the concentration parameter in the von Mises distribution.
@@ -174,7 +180,7 @@ $$=(\frac{1}{2 \pi I_0(k)})^n \cdot exp\{\sum_{i=1}^{n}k \cdot \cos(y_i-\mu)\}$$
 Prior 
 $$p(k)=\exp(\lambda=1)=e^{-k}$$
 
-Posterior = Likelihood x Prior
+Posterior $\propto$ Likelihood x Prior
 $$p(k|y,u) \propto p(y|\mu,k) \cdot p(k)$$
 $$\propto \frac{1}{I_0(k)}^n \cdot exp(k\sum_{i=1}^{n} \cos(y_i-\mu)) \cdot exp(-k)$$
 $$\propto \frac{1}{I_0(k)}^n \cdot exp(k\sum_{i=1}^{n} \cos(y_i-\mu) -k)$$
@@ -203,16 +209,16 @@ ggplot(data=df)+geom_line(aes(x=k,y=normalized_post,colour="Posterior"))+geom_li
 #ggplot()+geom_line(aes(x=k,y=llik))
 ```
 
-After normalizing our prior, likelihood and posterior, we got the graph contains three of them with the area under the curve are 1.
+After normalizing our prior, likelihood and posterior, we got the graph contains three of them which are integrated to 1.
 
 (b) Find the (approximate) posterior mode of k from the information in a).
 
 ```{r,q3=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
-# let's choose the interval as 2 to 5
-best_k_interval=abs(df$llik-df$normalized_post)[20:50]
-best_k=which.min(best_k_interval)*0.1+2
-best_k
+cat("Approximate mode of K is: ", "\n")
+k[which.max(posterior(k))]
 ```
+
+ Mode is, by definition, the value that appears the most. (https://en.wikipedia.org/wiki/Mode_(statistics)) Therefore, the value of $k$ with the highest posterior density will be equivelant to mode of the approximate posterior k. 
 
 \newpage
 # Appendix A : Code Question 1
