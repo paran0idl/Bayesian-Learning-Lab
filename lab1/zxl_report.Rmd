@@ -58,7 +58,7 @@ ggplot()+geom_point(aes(x=seq(10,10000,10),y=means))+geom_hline(yintercept=true_
 ggplot()+geom_point(aes(x=seq(10,10000,10),y=stds))+geom_hline(yintercept = sqrt(true_var),col="red")+xlab("Number of Draws")+ylab("Standard Deviation")+ggtitle("Posterior standard deviation with increasing number of random draws")
 ```
 
-As we can see from the plots above, for both mean and stanard deviation, at first the values are distributed around two side of the red line - which represents the true value. But as the number of random draws grows, the posterior mean and standard deviation converge to the red line, which is the true mean and true stanard deviation based on numerical calculation using the posterior distribution.
+ As we can see from the plots above, for both mean and stanard deviation, at first the values are distributed around two side of the red line. But as the number of random draws grows, the posterior mean and standard deviation converge to the red line, which is the true mean and true stanard deviation based on numerical calculation using the posterior distribution.
 
 
 (b) Use simulation (nDraws = 10000) to compute the posterior probability $Pr(\theta>0.3|y)$ and compare with the exact value [Hint: pbeta()].
@@ -72,7 +72,7 @@ cat("sample prob=",sample_prob)
 cat("\ntrue prob=",true_prob)
 ```
 
-We use the $\alpha$ and $\beta$ from (a) with function rbeta(), generated 10000 draws. Then get the number of thetas which are greater than 0.3 and divided by the total number. Function pbeta() is utilized to get the true probability.
+ We use the $\alpha$ and $\beta$ from (a) with function rbeta(), generated 10000 draws. Then, count the number of thetas which are greater than 0.3 and divide it by the total number of simulated thetas. Function pbeta() is utilized to get the true probability.
 
 
 (c) Compute the posterior distribution of the log-odds $\phi=log\frac{\theta}{1-\theta}$ by simulation (nDraws = 10000). [Hint: hist() and density() might come in handy].
@@ -114,7 +114,7 @@ df=data.frame(Simulation_Mean=mean(sigmas), Theoretical_Sigmasq = theoretical_va
 print(df)
 ```
 
-Difference between mean of simulated sigma-squared values and theoretical value of sigma-squared in percentage is less than 1%. 
+ Difference between mean of simulated sigma-squared values and theoretical value of sigma-squared in percentage is less than 1%. 
 
 (b) The most common measure of income inequality is the Gini coefficient, G, where $0\leqslant G\leqslant1$. $G=0$ means a completely equal income distribution, whereas $G=1$ means complete income inequality. See Wikipedia for more information. It can be shown that $G=2\Phi(\sigma/\sqrt{2})-1$ when incomes follow a $\log N(\mu,\sigma^2)$distribution.$\Phi(z)$is the cumulative distribution function (CDF) for the standard normal distribution with mean zero and unit variance. Use the posterior draws in a) to compute the posterior distribution of the Gini coefficient G for the current data set.
 
@@ -123,7 +123,7 @@ g_coeffs = 2*pnorm(sigmas/sqrt(2)) -1
 hist(g_coeffs, main="Histogram of Gini Coefficients from Simulation", xlab="Simulated Gini-coefficients")
 ```
 
-By generating 10000 draws and plotting the result, we can observe that the simulated Gini-coefficients are distributed mostly in range of 0 to 0.4, which indicates this sample represents income inequality.
+ By generating 10000 draws and plotting the result, we can observe that the simulated Gini-coefficients are right-skewed, which indicates this sample represents income inequality.
 
 (c) Use the posterior draws from b) to compute a 90% equal tail credible interval for G. A 90% equal tail interval (a; b) cuts off 5% percent of the posterior probability mass to the left of a, and 5% to the right of b. Also, do a kernel density estimate of the posterior of G using the density function in R with default settings, and use that kernel density estimate to compute a 90% Highest Posterior Density interval for G. Compare the two intervals.
 
@@ -180,7 +180,8 @@ $$=\prod_{i=1}^{n} \frac{exp[k \cdot \cos(y_i-\mu)]}{2\pi I_0(k)}$$
 $$=(\frac{1}{2 \pi I_0(k)})^n \cdot exp\{\sum_{i=1}^{n}k \cdot \cos(y_i-\mu)\}$$
 
 Prior 
-$$p(k)=\exp(\lambda=1)=e^{-k}$$
+$$p(k) \sim Exp[1]$$
+$$p(k)=e^{-k}$$
 
 Posterior = Likelihood x Prior
 $$p(k|y,u) = p(y|\mu,k) \cdot p(k)$$
@@ -211,7 +212,7 @@ ggplot(data=df)+geom_line(aes(x=k,y=normalized_post,colour="Posterior"))+geom_li
 #ggplot()+geom_line(aes(x=k,y=llik))
 ```
 
-To show our results graphically, we need to normalize our likelihood and posterior. In order to do this, first, we integrate our posterior and likelihood, the value we obtained is the area under the curve, then we use our likelihood and posterior divided by the value we got to normalize it. After normalizing our prior, likelihood and posterior, we got the graph contains three of them which are integrated to 1.
+ To show our results simultaneously on one graph, we need to normalize our likelihood and posterior. In order to do this, first, we integrate our posterior and likelihood to obtain the area under the curve. Then we use our likelihood and posterior divided by the value we got to normalize it. After normalizing our likelihood and posterior, we got one graph containing all three densities, which are integrated to 1.
 
 (b) Find the (approximate) posterior mode of k from the information in a).
 
