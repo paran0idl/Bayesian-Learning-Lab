@@ -143,7 +143,9 @@ cat("90% Highest Posterior Density interval is:", "\n")
 HPD=d$x[c(lower,upper)]
 print(HPD)
 
-ggplot()+geom_density(aes(x=g_coeffs))+geom_vline(xintercept =a,col="red",size=0.01)+geom_vline(xintercept = b,col="red",size=0.01)+geom_vline(xintercept =HPD[1],col="blue",size=0.01)+geom_vline(xintercept = HPD[2],col="blue",size=0.01)
+ggplot()+geom_density(aes(x=g_coeffs))+geom_vline(aes(xintercept =a,colour="ETI"),size=0.5)+geom_vline(aes(xintercept = b,colour="ETI"),size=0.5)+geom_vline(aes(xintercept =HPD[1],colour="HDI"),size=0.5)+geom_vline(aes(xintercept = HPD[2],colour="HDI"),size=0.5)
+
+
 ```
 
  We can find that in this case, HPD has a wider interval comparing to ETI.
@@ -180,8 +182,8 @@ $$=(\frac{1}{2 \pi I_0(k)})^n \cdot exp\{\sum_{i=1}^{n}k \cdot \cos(y_i-\mu)\}$$
 Prior 
 $$p(k)=\exp(\lambda=1)=e^{-k}$$
 
-Posterior $\propto$ Likelihood x Prior
-$$p(k|y,u) \propto p(y|\mu,k) \cdot p(k)$$
+Posterior = Likelihood x Prior
+$$p(k|y,u) = p(y|\mu,k) \cdot p(k)$$
 $$\propto \frac{1}{I_0(k)}^n \cdot exp(k\sum_{i=1}^{n} \cos(y_i-\mu)) \cdot exp(-k)$$
 $$\propto \frac{1}{I_0(k)}^n \cdot exp(k\sum_{i=1}^{n} \cos(y_i-\mu) -k)$$
 
@@ -189,7 +191,7 @@ $$\propto \frac{1}{I_0(k)}^n \cdot exp(k\sum_{i=1}^{n} \cos(y_i-\mu) -k)$$
 mu=2.39
 data=c(-2.44,2.14,2.54,1.83,2.02,2.33,-2.79,2.23,2.07,2.02)
 
-k=seq(0,15,0.1)
+k=seq(0,10,0.1)
 
 posterior=function(k){
   return(exp(k*sum(cos(data-mu))-k)*besselI(k,0)^(-length(data)))
@@ -200,16 +202,16 @@ llik_fn=function(k){
 prior_fn=function(k){
   return(exp(-k))
 }
-inte=integrate(posterior,lower = 0,upper = 15)
+inte=integrate(posterior,lower = 0,upper = 10)
 prior=prior_fn(k)
 llik=exp(k*sum(cos(data-mu)))*(besselI(k,0))^(-length(data))
-normalized_llik=llik/integrate(llik_fn,0,15)$value
+normalized_llik=llik/integrate(llik_fn,0,10)$value
 df=data.frame(k=k,normalized_post=(posterior(k)/inte$value),llik=normalized_llik,prior=prior)
 ggplot(data=df)+geom_line(aes(x=k,y=normalized_post,colour="Posterior"))+geom_line(aes(x=k,y=llik,colour="Likelihood"))+geom_line(aes(x=k,y=prior,colour="Prior"))
 #ggplot()+geom_line(aes(x=k,y=llik))
 ```
 
-After normalizing our prior, likelihood and posterior, we got the graph contains three of them which are integrated to 1.
+To show our results graphically, we need to normalize our likelihood and posterior. In order to do this, first, we integrate our posterior and likelihood, the value we obtained is the area under the curve, then we use our likelihood and posterior divided by the value we got to normalize it. After normalizing our prior, likelihood and posterior, we got the graph contains three of them which are integrated to 1.
 
 (b) Find the (approximate) posterior mode of k from the information in a).
 
