@@ -67,3 +67,61 @@ plot(density(parms$X2/(-2*parms$X3)))
 
 # d
 # check slides
+
+
+
+
+# q2
+library(mvtnorm)
+data=read.table("lab2/WomenWork.dat",header = TRUE)
+
+# likelihood for Probit model 
+# https://en.wikipedia.org/wiki/Probit_model
+
+y=data$Work
+x=data[,-1]
+x=as.matrix(x)
+co_count=dim(x)[2]
+
+# log_likelihood_probit=function(y,x,betas){
+#   return(sum(y*log(pnorm(x%*%betas))+(1-y)*log(1-pnorm(x%*%betas))))
+# }
+
+log_likehood_logistic=function(y,x,betas){
+  numerator=exp(x%*%betas)
+  return(log(prod(numerator^y/(1+numerator))))
+}
+
+
+log_prior_likelihood=function(tau,betas){
+  sigmas=diag(10,co_count,co_count)
+  mu=rep(0,co_count)
+  log_likelihood=(log(det(sigmas))+t(betas-mu)%*%solve(sigmas)%*%(betas-mu)+co_count*log(2*pi))*0.5
+  return(log_likelihood)
+}
+
+# for log posterior= log prior +log likelihood
+log_posterior=function(betas,y,x,tau){
+  #return(log_likelihood_probit(y,x,betas)+log_prior_likelihood(tau,betas))
+  return(log_likehood_logistic(y,x,betas)+log_prior_likelihood(tau,betas))
+}
+
+starting_value=rep(0,co_count)
+tau=10
+op=optim(starting_value,log_posterior,gr=NULL,y,x,tau,method=c("BFGS"),control=list(fnscale=-1),hessian=TRUE)
+op$par
+glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
+glm_model$coefficients
+
+
+posterior_mode=op$par
+plot(density(posterior_mode[7]*x[,7]))
+plot(density(x[,7]))
+res=x%*%posterior_mode
+res=as.numeric(res>0)
+
+cft=table(res,data$Work)
+(cft[1,1]+cft[2,2])/sum(cft)
+
+
+
