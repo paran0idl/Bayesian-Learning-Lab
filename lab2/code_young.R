@@ -92,3 +92,33 @@ legend("bottom", legend = c("Posterior Median", "Upper Bound of Credible Interva
 ### then the result here could be different. However, regression using assumed prior distribution on the first step of this simulation
 ### had concave pattern - thus it did not greatly interfere the likelihood while producing
 ### posterior distribution of the parameters.
+
+## 1-c.
+x_tilde = c()
+for (i in 1:ncol(y_hat)){
+  x_tilde = append(x_tilde, data1$time[which.max(y_hat[,i])])
+} imp
+
+
+x_tilde = x_tilde*365
+hist(x_tilde, main="Distribution of x_tilde")
+
+## 1-d.
+### one solution for mitigating potential problem is to set different hyperprior\
+### for prior distribution of betas.
+### set mu0 = c(0,0,0,0,0,0,0); set ohm0 to a matrix that its inverse matrix's diagonal 
+### value would be very small so that covariance matrix of the prior distribution
+### of betas would consist small diagonal values --- make prior have stronger 
+### impact on posterior
+
+### when prior distribution is certain, likelihood based on data has smaller
+### impact on deriving posterior distribution. in above case, prior belief
+### that betas will be 0s are very strong, it is unlikely the resulting
+### posterior distribution of beta will consist high values for all elements.
+
+
+# Question 2
+## import data
+data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab2/WomenWork.dat", header=TRUE)
+
+## 2-a.
