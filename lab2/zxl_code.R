@@ -113,15 +113,30 @@ op$par
 glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
 glm_model$coefficients
 
-
 posterior_mode=op$par
-plot(density(posterior_mode[7]*x[,7]))
-plot(density(x[,7]))
-res=x%*%posterior_mode
-res=as.numeric(res>0)
-
-cft=table(res,data$Work)
-(cft[1,1]+cft[2,2])/sum(cft)
-
+posterior_cov=-solve(op$hessian)
+# res=x%*%posterior_mode
+# res=as.numeric(res>0)
+# 
+# cft=table(res,data$Work)
+# (cft[1,1]+cft[2,2])/sum(cft)
 
 
+new_woman=c(1,10,8,10,1,40,1,1)
+posterior_draws=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
+new_woman_res=posterior_draws%*%new_woman
+
+plot(density(new_woman_res))
+
+p_work=c()
+for(i in 1:10){
+  posterior_draws=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
+  new_woman_res=posterior_draws%*%new_woman
+  new_woman_res=as.numeric(new_woman_res>0)
+  work=length(new_woman_res[new_woman_res==1])
+  p_work=c(p_work,work/1000)
+}
+p_work
+# for binomial, how we get the probability for success ? averging or take one value ?
+plot(density(rbinom(10000,10,0.3)))
+?rbinom
