@@ -98,6 +98,7 @@ ggplot()+geom_point(aes(x=data$time,y=data$temp))+
   xlab("Time")+ylab("Temp")
 ```
 
+The 95% equal tailed credible interval includes most of the data. This does make sense because the regression is based on joint posterior distribution, and such joint posterior distribution is derived by using the data. If the prior belief was very strong and such belief had completely different pattern than that of data points, then the result here could be different. However, regression using assumed prior distribution on the first step of this simulation,had concave pattern - thus it did not greatly interfere the likelihood while producing, posterior distribution of the parameters.
 
 (c) It is of interest to locate the time with the highest expected temperature (that
 is, the time where $f(time)$ is maximal). Let’s call this value $\tilde{x}$ Use the simulations in b) to simulate from the posterior distribution of $\tilde{x}$ [Hint: the
@@ -168,8 +169,8 @@ posterior_cov=-solve(op$hessian)
 
 cat("Posterior mode,",posterior_mode)
 cat("\nHessian Inverse,")
-kable(posterior_cov)
-
+#::kable(posterior_cov)
+plot(density(posterior_mode[7]*x[,7]))
 glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
 cat("\nglm model coefficients:",glm_model$coefficients)
 
@@ -177,9 +178,13 @@ cat("\nmy own model likelihood:",log_likehood_logistic(y,x,posterior_mode))
 cat("\nglm model likelihood:",log_likehood_logistic(y,x,glm_model$coefficients))
 ```
 
+Judging by the value of posterior mode, the value of NSmallChild had a strong negetive impact on the result.
+
 Comparing the likelihood for both parameters from posterior mode and glm model, we can find out that the two likelihood are really close, seeing that, we think the result is reasonable.
 
 (b) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(a). Use that function to simulate and plot the predictive distribution for the Work variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hints: The R package mvtnorm will again be handy. Remember my discussion on how Bayesian prediction can be done by simulation.]
+
+Generate Bayesian prediction with simulation by generating posterior draws first then the predictive draws.
 
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 new_woman=c(1,10,8,10,1,40,1,1)
@@ -188,11 +193,8 @@ new_woman_res=posterior_draws%*%new_woman
 
 plot(density(new_woman_res))
 ```
+
 (c) Now, consider 10 women which all have the same features as the woman in 2(b). Rewrite your function and plot the predictive distribution for the number of women, out of these 10, that are working. [Hint: Which distribution can be described as a sum of Bernoulli random variables?]
-
-```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
-
-```
 
 
 \newpage
