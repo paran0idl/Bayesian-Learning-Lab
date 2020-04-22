@@ -169,7 +169,7 @@ set.seed(12345)
 simulated_betas = rmvnorm(100000, mean = post_betas_mode, sigma = post_cov)
 simulated_NSmallChild = simulated_betas[,7]
 plot(density(simulated_NSmallChild), main="Simulated Beta Corresponding to NSmallChild(Not Normalized)")
-mode_NSC = mean(simulated_NSmallChild)
+mode_NSC = density(simulated_NSmallChild)$x[which.max(density(simulated_NSmallChild)$y)]
 #### since qnorm retunrs value based on standard normal, 
 lim1 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild))
 lim2 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild), lower.tail = FALSE)
