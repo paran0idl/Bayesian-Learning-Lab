@@ -122,3 +122,92 @@ hist(x_tilde, main="Distribution of x_tilde")
 data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab2/WomenWork.dat", header=TRUE)
 
 ## 2-a.
+### basic setups
+library(mvtnorm)
+tau = 10
+y = as.vector(data2[,1])
+x = as.matrix(data2[,-1])
+covariates = names(data2[,-1])
+n_param = ncol(x)
+
+### hyperparameters for priors
+mu0 = rep(0, times = n_param)
+sigma0 = tau*diag(n_param)
+
+### defining log_posterior functions used to find the mode of the distributions
+log_postlogit = function(betas, x, y) {
+  
+  prediction = x %*% betas
+  loglikeli = sum(prediction*y - log(1+exp(prediction)))
+  # since likelihood value itself is <1, prevent it from reaching -Inf to make calculation work
+  if (abs(loglikeli) == Inf) {loglikeli = -(1e+10)}
+  
+  logprior = dmvnorm(betas, mean = as.matrix(mu0), sigma0, log=TRUE)
+  
+  # since it is log posterior, it is proportional to sum of loglikli&logprior
+  return(loglikeli+logprior)
+}
+
+### objective is to find posterior distribution of betas.
+### since the objective is to find the maximum, set fn as minus posterior
+initials = rep(0, n_param)
+optimum_result = optim(initials, -log_postlogit, x, y, gr = NULL, method = "BFGS", control = list(fnscale=-1), hessian = TRUE)
+
+post_betas_mode = optimum_result$par
+post_cov = -solve(optimum_result$hessian)
+names(post_betas_mode) = covariates
+colnames(post_cov) = covariates
+rownames(post_cov) = covariates
+
+cat("The posterior mean of beta vector is: ", "\n")
+post_betas_mode
+cat("The posterior covariance of beta vector is:", "\n")
+post_cov
+
+### 95% credible interval of NSmallChild
+set.seed(12345)
+simulated_betas = rmvnorm(100000, mean = post_betas_mode, sigma = post_cov)
+simulated_NSmallChild = simulated_betas[,7]
+plot(density(simulated_NSmallChild), main="Simulated Beta Corresponding to NSmallChild(Not Normalized)")
+mode_NSC = mean(simulated_NSmallChild)
+#### since qnorm retunrs value based on standard normal, 
+lim1 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild))
+lim2 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild), lower.tail = FALSE)
+abline(v = lim1, col = "red")
+abline(v = lim2, col= "red")
+legend("topright", legend = "95% Credible Interval", lty = 1, col="red")
+#### 95% credible interval does not involve 0 -- this feature is an important determinant.
+
+glmModel <- glm(Work~ 0 + ., data = data2, family = binomial)
+#### it is an important determinant of the probability. -- very small p-value in frequentist approach, indicating it is very much unlikely that NSmallChild has no effect on the response variable.
+
+
+
+## 2-b.
+### use approximation in 2a -> post_betas_mode
+property = matrix(c(1, 10, 8, 10, 1, 40, 1, 1), ncol=1)
+set.seed(12345)
+simulate_logit = function(property, n_sim){
+  sim_betas = rmvnorm(n = n_sim, mean = post_betas_mode, sigma = post_cov)
+  xb = as.vector(sim_betas %*% property)
+  #returning the probability of work=1, which is a response variable of logistic regression
+  return(exp(xb)/(1+exp(xb)))
+}
+
+simulation_2b = simulate_logit(property, 100000)
+plot(density(simulation_2b), main = "Predictive Distribution with Given Properties")
+
+
+## 2-c.
+work_predict = function(n_women, probs){
+"  num_work = c()
+  for (i in 1:length(probs)){
+    num_work = append(num_work, rbinom(1, size = n_women, prob = probs[i]))
+  }"
+  return(rbinom(length(probs), n_women, prob = probs))
+}
+
+prediction_on_nums = work_predict(10, simulation_2b)
+hist(prediction_on_nums, main = "Predictive Distribution on Number of Working Women", xlab = "Number of Working Women")
+### since the result of of the simulation is discrete values of natural number, it doesn't show smooth line
+### when plot(density(prediction_on_nums)) is used
