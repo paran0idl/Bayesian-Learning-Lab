@@ -170,7 +170,7 @@ posterior_cov=-solve(op$hessian)
 cat("Posterior mode,",posterior_mode)
 cat("\nHessian Inverse,")
 #::kable(posterior_cov)
-plot(density(posterior_mode[7]*x[,7]))
+
 glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
 cat("\nglm model coefficients:",glm_model$coefficients)
 
@@ -190,12 +190,21 @@ Generate Bayesian prediction with simulation by generating posterior draws first
 new_woman=c(1,10,8,10,1,40,1,1)
 posterior_draws=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
 new_woman_res=posterior_draws%*%new_woman
-
-plot(density(new_woman_res))
+hist(new_woman_res)
 ```
 
 (c) Now, consider 10 women which all have the same features as the woman in 2(b). Rewrite your function and plot the predictive distribution for the number of women, out of these 10, that are working. [Hint: Which distribution can be described as a sum of Bernoulli random variables?]
-
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+new_woman=c(1,10,8,10,1,40,1,1)
+res=c()
+for(i in 1:10000){
+  posterior_draws=rmvnorm(10,mean=posterior_mode,sigma = posterior_cov)
+  new_woman_res=posterior_draws%*%new_woman
+  working_women=length(new_woman_res[new_woman_res>0])
+  res=c(res,working_women)
+}
+plot(density(res))
+```
 
 \newpage
 
