@@ -116,6 +116,7 @@ plot(density(parms$betas.2/(-2*parms$betas.3)))
 
 (d) Say now that you want to estimate a polynomial model of order 7 but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0 \ and\  \Omega_0$ in a smart way.]
 
+One solution for mitigating potential problem is to set different hyperprior for prior distribution of betas. Set $\mu=0$; set $\Omega_0$ to a matrix that its inverse matrix's diagonal value would be very small so that covariance matrix of the prior distribution of betas would consist small diagonal values make prior have stronger impact on posterior. When prior distribution is certain, likelihood based on data has smaller impact on deriving posterior distribution. In above case, prior belief that betas will be 0s are very strong, it is unlikely the resulting posterior distribution of beta will consist high values for all elements.
 
 2. Posterior approximation for classification with logistic regression
 
@@ -169,17 +170,23 @@ posterior_cov=-solve(op$hessian)
 
 cat("Posterior mode,",posterior_mode)
 cat("\nHessian Inverse,")
-#::kable(posterior_cov)
+#kable(posterior_cov)
 
 glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
 cat("\nglm model coefficients:",glm_model$coefficients)
 
 cat("\nmy own model likelihood:",log_likehood_logistic(y,x,posterior_mode))
 cat("\nglm model likelihood:",log_likehood_logistic(y,x,glm_model$coefficients))
+
+pdraw=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
+NSmallChild=pdraw[,7]
+NSmallChild=sort(NSmallChild)
+lower_value=NSmallChild[length(NSmallChild)*0.025]
+upper_value=NSmallChild[length(NSmallChild)*0.975]
+ggplot()+geom_density(aes(NSmallChild))+geom_vline(xintercept = lower_value)+geom_vline(xintercept = upper_value)
 ```
 
-Judging by the value of posterior mode, the value of NSmallChild had a strong negetive impact on the result.
-
+The plot above shows the density and 95% credible interval of varaible NSmallChild from 1000 simulations. As we can see from it that 95% of simulation were gather between -0.6 to -2.2, based on this we can say this variable has a negetive impact on the result. 
 Comparing the likelihood for both parameters from posterior mode and glm model, we can find out that the two likelihood are really close, seeing that, we think the result is reasonable.
 
 (b) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(a). Use that function to simulate and plot the predictive distribution for the Work variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hints: The R package mvtnorm will again be handy. Remember my discussion on how Bayesian prediction can be done by simulation.]
