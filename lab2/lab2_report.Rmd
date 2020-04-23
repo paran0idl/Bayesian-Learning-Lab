@@ -1,7 +1,13 @@
 ---
-title: "Lab 2 Report Zxl version"
-author: "Zuxiang Li, Jooyoung Lee"
-date: "4/19/2020"
+title:  |
+        | Computer Lab 2
+        | 732A54 - Bayesian Learning
+
+author: | 
+        | Jooyoung Lee - ```joole336```
+        | Zuxiang Li - ```zuxli371```
+        
+date : \today
 output: pdf_document
 ---
 
@@ -14,7 +20,8 @@ library(extraDistr)
 library(knitr)
 ```
 
-1. Linear and polynomial regression
+### 1. Linear and polynomial regression
+
 The dataset TempLinkoping.txt contains daily temperatures (in Celcius degrees) at Malmslätt, Linköping over the course of the year 2016 (366 days since 2016 was a leap year). The response variable is temp and the covariate is
 $$time=\frac{the \ number \ of \ days \ since \ beginning \ of \ year}{366}$$
 
@@ -34,7 +41,7 @@ Omega_0=0.01*diag(1,3,3)
 v_0=4
 sigma_sq_0=1
 
-plot(data$temp)
+plot(data$temp,xlab="Time",ylab="Temp",main = "Tempreture in Linkoping")
 
 for(i in 1:10){
   sigma_prior=rinvchisq(n=1, nu=v_0, tau = sigma_sq_0)
@@ -43,9 +50,8 @@ for(i in 1:10){
   lines(res,col="red")
 }
 ```
-Red lines in the plot represent regression curves from prior, the curves look reasonable since they all follow a certain pattern as same as our temp data.
 
-
+Red lines in the plot represent regression curves from prior, these curves varies a lot, but still they follows the pattern of the given data. Thus the given hyperparameters could be utilized to produce prior distribution and we can say the curves look reasonable.
 
 
 (b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2 and \sigma^2$ Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time)=\beta_0+\beta_1 \cdot time+\beta_2\cdot time^2$, computed for every value of time. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for $f(time)$. That is, compute the 95% equal tail posterior probability intervals for every value of time and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
@@ -68,11 +74,10 @@ for(i in 1:10000){
   epsilon=matrix(rnorm(1,mean=0,sd=sqrt(sigma_sq[i])))
   parms=rbind(parms,data.frame(betas=betas,epsilon=epsilon))
 }
-#parms=data.frame(betas,epsilon)
-hist(parms$betas.1,breaks=100)
-hist(parms$betas.2,breaks=100)
-hist(parms$betas.3,breaks=100)
-hist(sigma_sq,breaks=100)
+hist(parms$betas.1,breaks=100,main = "Histogram of Posterior Beta0", xlab="Simulated Posterior Value")
+hist(parms$betas.2,breaks=100,main = "Histogram of Posterior Beta1", xlab="Simulated Posterior Value")
+hist(parms$betas.3,breaks=100,main = "Histogram of Posterior Beta2", xlab="Simulated Posterior Value")
+hist(sigma_sq,breaks=100,main = "Histogram of Posterior Sigma-Squared", xlab="Simulated Posterior Value")
 ```
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
@@ -110,18 +115,19 @@ $$0=\beta_1+2 \beta_2 \cdot time$$
 $$time=-\frac{\beta_1}{2 \beta_2}$$
 In this case
 $$\tilde{x}=\frac{\beta_1}{2\beta_2}$$
+
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
-plot(density(parms$betas.2/(-2*parms$betas.3)))
+plot(density(parms$betas.2/(-2*parms$betas.3)), main="Highest tilde x distribution")
 ```
+
+Based on our intuition, the highest tempreture in a year should be around July or August. We take the first derivative of time and then plot the distribution, the highest result is around 0.542 which indicate the result meet our intuition.
 
 (d) Say now that you want to estimate a polynomial model of order 7 but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0 \ and\  \Omega_0$ in a smart way.]
 
 One solution for mitigating potential problem is to set different hyperprior for prior distribution of betas. Set $\mu=0$; set $\Omega_0$ to a matrix that its inverse matrix's diagonal value would be very small so that covariance matrix of the prior distribution of betas would consist small diagonal values make prior have stronger impact on posterior. When prior distribution is certain, likelihood based on data has smaller impact on deriving posterior distribution. In above case, prior belief that betas will be 0s are very strong, it is unlikely the resulting posterior distribution of beta will consist high values for all elements.
+For example, we can choose laplace prior $\beta_i|\sigma^2~Laplace(0,\frac{\sigma^2}{\lambda})$. For laplace prior, many $\beta_i$ close to zero but some of the $\beta_i$ could have really large values, which meet our needs.
 
-2. Posterior approximation for classification with logistic regression
-
-The dataset WomenWork.dat contains n = 200 observations (i.e. women) on the
-following nine variables:
+### 2. Posterior approximation for classification with logistic regression
 
 (a) Consider the logistic regression
 $$Pr(y=1|x)=\frac{exp(x^T \beta)}{1+exp(x^T \beta)}$$
@@ -135,11 +141,14 @@ evaluated at the posterior mode. Note that $\frac{\partial^2 \ln p(\beta|y)}{\pa
 Your report should include your code as well as numerical values for $\tilde{\beta}\ and\ J_y^{-1}(\tilde{\beta})$ for the WomenWork data. Compute an approximate 95% credible interval
 for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
+
+
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 data=read.table("WomenWork.dat",header = TRUE)
 
 y=data$Work
 x=data[,-1]
+covariates = names(x)
 x=as.matrix(x)
 co_count=dim(x)[2]
 
@@ -167,26 +176,42 @@ op=optim(starting_value,log_posterior,gr=NULL,y,x,tau,method=c("BFGS"),control=l
 posterior_mode=op$par
 posterior_cov=-solve(op$hessian)
 
-cat("Posterior mode,",posterior_mode)
-cat("\nHessian Inverse,")
-#kable(posterior_cov)
 
-glm_model=glm(Work ~ 0 + ., data = data, family = binomial)
-cat("\nglm model coefficients:",glm_model$coefficients)
+names(posterior_mode) = covariates
+colnames(posterior_cov) = covariates
+rownames(posterior_cov) = covariates
+#cat("Posterior mode\n")
+#print(posterior_mode)
+kable(posterior_mode)
+#cat("\nHessian Inverse\n")
+#print(posterior_cov)
+kable(posterior_cov)
+### 95% credible interval of NSmallChild
+set.seed(12345)
+simulated_betas = rmvnorm(100000, mean = posterior_mode, sigma = posterior_cov)
+simulated_NSmallChild = simulated_betas[,7]
+plot(density(simulated_NSmallChild), main="Simulated Beta Corresponding to NSmallChild(Not Normalized)")
+mode_NSC = density(simulated_NSmallChild)$x[which.max(density(simulated_NSmallChild)$y)]
+#### since qnorm retunrs value based on standard normal, 
+lim1 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild))
+lim2 = qnorm(0.975, mean = mode_NSC, sd = sd(simulated_NSmallChild), lower.tail = FALSE)
+abline(v = lim1, col = "red")
+abline(v = lim2, col= "red")
+legend("topright", legend = "95% Credible Interval", lty = 1, col="red")
+#### 95% credible interval does not involve 0 -- this feature is an important determinant.
+
+glmModel <- glm(Work~ 0 + ., data = data, family = binomial)
+summary(glmModel)
 
 cat("\nmy own model likelihood:",log_likehood_logistic(y,x,posterior_mode))
-cat("\nglm model likelihood:",log_likehood_logistic(y,x,glm_model$coefficients))
+cat("\nglm model likelihood:",log_likehood_logistic(y,x,glmModel$coefficients))
+#### it is an important determinant of the probability. -- very small p-value in frequentist approach, indicating it is very much unlikely that NSmallChild has no effect on the response variable.
 
-pdraw=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
-NSmallChild=pdraw[,7]
-NSmallChild=sort(NSmallChild)
-lower_value=NSmallChild[length(NSmallChild)*0.025]
-upper_value=NSmallChild[length(NSmallChild)*0.975]
-ggplot()+geom_density(aes(NSmallChild))+geom_vline(xintercept = lower_value)+geom_vline(xintercept = upper_value)
+
 ```
 
-The plot above shows the density and 95% credible interval of varaible NSmallChild from 1000 simulations. As we can see from it that 95% of simulation were gather between -0.6 to -2.2, based on this we can say this variable has a negetive impact on the result. 
-Comparing the likelihood for both parameters from posterior mode and glm model, we can find out that the two likelihood are really close, seeing that, we think the result is reasonable.
+To verify that our result is reasonble, first we have a look at the likelihood of our model and glm model. Both of them are really close.
+From the plot, we can observed that 95% credible interval does not contain 0, this feature is an important determinant. Using R built-in model glm to anaylize the given data, it is shown that very small p-value in frequentist approach, indicating it is very much unlikely that NSmallChild has no effect on the response variable.
 
 (b) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(a). Use that function to simulate and plot the predictive distribution for the Work variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hints: The R package mvtnorm will again be handy. Remember my discussion on how Bayesian prediction can be done by simulation.]
 
@@ -196,12 +221,12 @@ Generate Bayesian prediction with simulation by generating posterior draws first
 new_woman=c(1,10,8,10,1,40,1,1)
 posterior_draws=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
 new_woman_res=posterior_draws%*%new_woman
-hist(new_woman_res)
 prob=exp(new_woman_res)/(1+exp(new_woman_res))
-hist(prob,breaks=100)
+plot(density(prob), main = "Predictive Distribution with Given Properties")
 ```
 
 (c) Now, consider 10 women which all have the same features as the woman in 2(b). Rewrite your function and plot the predictive distribution for the number of women, out of these 10, that are working. [Hint: Which distribution can be described as a sum of Bernoulli random variables?]
+
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 new_woman=c(1,10,8,10,1,40,1,1)
 res=c()
