@@ -26,7 +26,7 @@ The dataset TempLinkoping.txt contains daily temperatures (in Celcius degrees) a
 $$time=\frac{the \ number \ of \ days \ since \ beginning \ of \ year}{366}$$
 
 The task is to perform a Bayesian analysis of a quadratic regression
-$$ temp=\beta_0+\beta_1 \cdot time + \beta_2 \cdot time^2 + \epsilon , \epsilon ~N(0,\sigma^2) $$
+$$ temp=\beta_0+\beta_1 \cdot time + \beta_2 \cdot time^2 + \epsilon , \epsilon \sim N(0,\sigma^2) $$
 
 (a) Determining the prior distribution of the model parameters. Use the conjugate prior for the linear regression model. Your task is to set the prior hyperparameters $\mu_0,\Omega_0,v_0\ and\ \sigma^2$ to sensible values. Start with $\mu_0=(-10,100,-100)^T$, $\Omega_0=0.01 \cdot I_3, v_0=4 \ and \ \sigma^2=1$. Check if this prior agrees with your prior opinions by simulating draws from the joint prior of all parameters and for every draw compute the regression curve. This gives a collection of regression curves, one for each draw from the prior. Do the collection of curves look reasonable? If not, change the prior hyperparameters until the collection of prior regression curves agrees with your prior beliefs about the regression curve.
 [Hint: the R package mvtnorm will be handy. And use your $Inv-\chi^2$ simulator from Lab 1.]
@@ -54,7 +54,7 @@ for(i in 1:10){
 Red lines in the plot represent regression curves from prior, these curves varies a lot, but still they follows the pattern of the given data. Thus the given hyperparameters could be utilized to produce prior distribution and we can say the curves look reasonable.
 
 
-(b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2 and \sigma^2$ Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time)=\beta_0+\beta_1 \cdot time+\beta_2\cdot time^2$, computed for every value of time. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for $f(time)$. That is, compute the 95% equal tail posterior probability intervals for every value of time and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
+(b) Write a program that simulates from the joint posterior distribution of $\beta_0, \beta_1, \beta_2$ and $\sigma^2$. Plot the marginal posteriors for each parameter as a histogram. Also produce another figure with a scatter plot of the temperature data and overlay a curve for the posterior median of the regression function $f(time)=\beta_0+\beta_1 \cdot time+\beta_2\cdot time^2$, computed for every value of time. Also overlay curves for the lower 2.5% and upper 97.5% posterior credible interval for $f(time)$. That is, compute the 95% equal tail posterior probability intervals for every value of time and then connect the lower and upper limits of the interval by curves. Does the interval bands contain most of the data points? Should they?
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 beta_hat=solve(t(x)%*%x)%*%t(x)%*%as.matrix(y)
@@ -103,14 +103,14 @@ ggplot()+geom_point(aes(x=data$time,y=data$temp))+
   xlab("Time")+ylab("Temp")
 ```
 
-The 95% equal tailed credible interval includes most of the data. This does make sense because the regression is based on joint posterior distribution, and such joint posterior distribution is derived by using the data. If the prior belief was very strong and such belief had completely different pattern than that of data points, then the result here could be different. However, regression using assumed prior distribution on the first step of this simulation,had concave pattern - thus it did not greatly interfere the likelihood while producing, posterior distribution of the parameters.
+ The 95% equal tailed credible interval includes most of the data. This does make sense because the regression is based on joint posterior distribution, and such joint posterior distribution is derived by using the data. If the prior belief was very strong and such belief had completely different pattern than that of data points, then the result here could be different. However, regression using assumed prior distribution on the first step of this simulation, had concave pattern - thus it did not greatly interfere the likelihood while producing posterior distribution of the parameters.
 
 (c) It is of interest to locate the time with the highest expected temperature (that
 is, the time where $f(time)$ is maximal). Let’s call this value $\tilde{x}$ Use the simulations in b) to simulate from the posterior distribution of $\tilde{x}$ [Hint: the
 regression curve is a quadratic. You can find a simple formula for ~x given $\beta_0,\beta_1 \ and \  \beta_2$
 
-Since the regression curve is quadratic, so we take the first derivative of time for the formula
-$$temp=\beta_0+\beta_1 \cdot time + \beta_2 \cdot time^2 + \epsilon , \epsilon ~N(0,\sigma^2)$$
+ Since the regression curve is quadratic, so we take the first derivative of time for the formula
+$$temp=\beta_0+\beta_1 \cdot time + \beta_2 \cdot time^2 + \epsilon , \epsilon \sim N(0,\sigma^2)$$
 $$0=\beta_1+2 \beta_2 \cdot time$$
 $$time=-\frac{\beta_1}{2 \beta_2}$$
 In this case
@@ -120,12 +120,12 @@ $$\tilde{x}=\frac{\beta_1}{2\beta_2}$$
 plot(density(parms$betas.2/(-2*parms$betas.3)), main="Highest tilde x distribution")
 ```
 
-Based on our intuition, the highest tempreture in a year should be around July or August. We take the first derivative of time and then plot the distribution, the highest result is around 0.542 which indicate the result meet our intuition.
+ Based on our intuition, the highest tempreture in a year should be around July or August. We take the first derivative of time and then plot the distribution, the highest result is around 0.542 which indicate the result meet our intuition. 0.542 is equivelant to `r 0.542*365`th day of the year.
 
 (d) Say now that you want to estimate a polynomial model of order 7 but you suspect that higher order terms may not be needed, and you worry about overfitting. Suggest a suitable prior that mitigates this potential problem. You do not need to compute the posterior, just write down your prior. [Hint: the task is to specify $\mu_0 \ and\  \Omega_0$ in a smart way.]
 
 One solution for mitigating potential problem is to set different hyperprior for prior distribution of betas. Set $\mu=0$; set $\Omega_0$ to a matrix that its inverse matrix's diagonal value would be very small so that covariance matrix of the prior distribution of betas would consist small diagonal values make prior have stronger impact on posterior. When prior distribution is certain, likelihood based on data has smaller impact on deriving posterior distribution. In above case, prior belief that betas will be 0s are very strong, it is unlikely the resulting posterior distribution of beta will consist high values for all elements.
-For example, we can choose laplace prior $\beta_i|\sigma^2~Laplace(0,\frac{\sigma^2}{\lambda})$. For laplace prior, many $\beta_i$ close to zero but some of the $\beta_i$ could have really large values, which meet our needs.
+For example, we can choose laplace prior $\beta_i|\sigma^2 \sim Laplace(0,\frac{\sigma^2}{\lambda})$. For laplace prior, many $\beta_i$ close to zero but some of the $\beta_i$ could have really large values, which meet our needs.
 
 ### 2. Posterior approximation for classification with logistic regression
 
@@ -135,9 +135,9 @@ where y is the binary variable with y = 1 if the woman works and y = 0 if she do
 
 Now the fun begins. Our goal is to approximate the posterior distribution of
 the 8-dim parameter vector $\beta$ with a multivariate normal distribution
-$$\beta|y,X~N(\tilde{\beta},J_y^{-1}(\tilde{\beta}))$$
+$$\beta|y,X \sim N(\tilde{\beta},J_y^{-1}(\tilde{\beta}))$$
 where $\tilde{\beta}$ is the posterior mode and $J(\tilde{\beta})=-\frac{\partial^2 \ln p(\beta|y)}{\partial \beta \partial \beta^T}|_{\beta=\tilde{\beta}}$ is the observed Hessian
-evaluated at the posterior mode. Note that $\frac{\partial^2 \ln p(\beta|y)}{\partial \beta \partial \beta^T}$ is an 8x8 matrix with second derivatives on the diagonal and cross-derivatives $\frac{\partial^2 \ln p(\beta|y)}{\partial \beta \partial \beta^T}$ on the offdiagonal. It is actually not hard to compute this derivative by hand, but don’t worry, we will let the computer do it numerically for you. Now, both $\tilde{\beta} \ and \ J(\tilde{\beta})$ are computed by the optim function in R. See my code https://github.com/mattiasvillani/BayesLearnCourse/raw/master/Code/MainOptimizeSpam. zip  here I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta~N(0,\tau^2I), with\  \tau=10$.
+evaluated at the posterior mode. Note that $\frac{\partial^2 \ln p(\beta|y)}{\partial \beta \partial \beta^T}$ is an 8x8 matrix with second derivatives on the diagonal and cross-derivatives $\frac{\partial^2 \ln p(\beta|y)}{\partial \beta \partial \beta^T}$ on the offdiagonal. It is actually not hard to compute this derivative by hand, but don’t worry, we will let the computer do it numerically for you. Now, both $\tilde{\beta} \ and \ J(\tilde{\beta})$ are computed by the optim function in R. See my code https://github.com/mattiasvillani/BayesLearnCourse/raw/master/Code/MainOptimizeSpam. zip  here I have coded everything up for the spam prediction example (it also does probit regression, but that is not needed here). I want you to implement you own version of this. You can use my code as a template, but I want you to write your own file so that you understand every line of your code. Don’t just copy my code. Use the prior $\beta \sim N(0,\tau^2I)$, with $\tau=10$.
 Your report should include your code as well as numerical values for $\tilde{\beta}\ and\ J_y^{-1}(\tilde{\beta})$ for the WomenWork data. Compute an approximate 95% credible interval
 for the variable NSmallChild. Would you say that this feature is an important determinant of the probability that a women works?
 
@@ -210,12 +210,12 @@ cat("\nglm model likelihood:",log_likehood_logistic(y,x,glmModel$coefficients))
 
 ```
 
-To verify that our result is reasonble, first we have a look at the likelihood of our model and glm model. Both of them are really close.
-From the plot, we can observed that 95% credible interval does not contain 0, this feature is an important determinant. Using R built-in model glm to anaylize the given data, it is shown that very small p-value in frequentist approach, indicating it is very much unlikely that NSmallChild has no effect on the response variable.
+ To verify that our result is reasonble, first we have a look at the likelihood of our model and glm model. Both of them are really close.
+Also, from the plot, we can observed that 95% credible interval does not contain 0, indicating this feature is an important determinant. Using R built-in model glm to anaylize the given data, it is shown that this feature has very small p-value - which means in frequentist approach, it is very much unlikely that NSmallChild has no effect on the response variable.
 
 (b) Write a function that simulates from the predictive distribution of the response variable in a logistic regression. Use your normal approximation from 2(a). Use that function to simulate and plot the predictive distribution for the Work variable for a 40 year old woman, with two children (3 and 9 years old), 8 years of education, 10 years of experience. and a husband with an income of 10. [Hints: The R package mvtnorm will again be handy. Remember my discussion on how Bayesian prediction can be done by simulation.]
 
-Generate Bayesian prediction with simulation by generating posterior draws first then the predictive draws.
+ Generate Bayesian prediction with simulation by generating posterior draws first then the predictive draws.
 
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 new_woman=c(1,10,8,10,1,40,1,1)
