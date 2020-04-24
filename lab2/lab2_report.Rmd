@@ -219,7 +219,7 @@ Also, from the plot, we can observed that 95% credible interval does not contain
 
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 new_woman=c(1,10,8,10,1,40,1,1)
-posterior_draws=rmvnorm(1000,mean=posterior_mode,sigma = posterior_cov)
+posterior_draws=rmvnorm(10000,mean=posterior_mode,sigma = posterior_cov)
 new_woman_res=posterior_draws%*%new_woman
 prob=exp(new_woman_res)/(1+exp(new_woman_res))
 plot(density(prob), main = "Predictive Distribution with Given Properties")
@@ -228,15 +228,16 @@ plot(density(prob), main = "Predictive Distribution with Given Properties")
 (c) Now, consider 10 women which all have the same features as the woman in 2(b). Rewrite your function and plot the predictive distribution for the number of women, out of these 10, that are working. [Hint: Which distribution can be described as a sum of Bernoulli random variables?]
 
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
-new_woman=c(1,10,8,10,1,40,1,1)
-res=c()
-for(i in 1:10000){
-  posterior_draws=rmvnorm(10,mean=posterior_mode,sigma = posterior_cov)
-  new_woman_res=posterior_draws%*%new_woman
-  working_women=length(new_woman_res[new_woman_res>0])
-  res=c(res,working_women)
+work_predict = function(n_women, probs){
+"  num_work = c()
+  for (i in 1:length(probs)){
+    num_work = append(num_work, rbinom(1, size = n_women, prob = probs[i]))
+  }"
+  return(rbinom(length(probs), n_women, prob = probs))
 }
-plot(density(res))
+
+prediction_on_nums = work_predict(10, prob)
+hist(prediction_on_nums, main = "Predictive Distribution on Number of Working Women", xlab = "Number of Working Women")
 ```
 
 \newpage
