@@ -124,7 +124,7 @@ ggplot()+geom_col(aes(x=d$x,y=d$y,colour="Simulation"))+geom_line(aes(x=seq(0,3,
 # print(df)
 ```
 
- Difference between mean of simulated sigma-squared values and theoretical value of sigma-squared in percentage is less than 1%. 
+ After plotting the histogram of simulated $\sigma^2$ and theoretical probability density of the posterior distribution of $\sigma^2$, it is possible to spot that these two are very similar to each other. 
 
 (b) The most common measure of income inequality is the Gini coefficient, G, where $0\leqslant G\leqslant1$. $G=0$ means a completely equal income distribution, whereas $G=1$ means complete income inequality. See Wikipedia for more information. It can be shown that $G=2\Phi(\sigma/\sqrt{2})-1$ when incomes follow a $\log N(\mu,\sigma^2)$distribution.$\Phi(z)$is the cumulative distribution function (CDF) for the standard normal distribution with mean zero and unit variance. Use the posterior draws in a) to compute the posterior distribution of the Gini coefficient G for the current data set.
 
@@ -165,10 +165,9 @@ cat(HPD)
 ggplot()+geom_density(aes(x=g_coeffs))+geom_vline(aes(xintercept =ETI[1],colour="ETI"),size=0.5)+geom_vline(aes(xintercept = ETI[2],colour="ETI"),size=0.5)+geom_vline(aes(xintercept =HPD[1],colour="HDI"),size=0.5)+geom_vline(aes(xintercept = HPD[2],colour="HDI"),size=0.5)
 ```
 
- We can find that in this case, HPD has a wider interval comparing to ETI.
- 
- By definition, HPD interval includes all values of x "for which the density is at least as big as some value W".(Kruschke, J. K. (2015). Doing Bayesian data analysis: a tutorial with R, Jags, and Stan. Amsterdam: Elsevier/AP.) Therefore it is expected that the end points of the interval to have the same density if the distribution is continuous. However, since we are using simulated data, which are discrete points, it does make sense that the end points of the HPD interval have different probability density to each other.
+ By definition, HPD interval includes all values of x "for which the density is at least as big as some value W".(Kruschke, J. K. (2015). Doing Bayesian data analysis: a tutorial with R, Jags, and Stan. Amsterdam: Elsevier/AP.) Therefore it is expected that the end points of the interval to have the same density if the distribution is continuous - and on the graph above, it is possible to see that the end points of HPD interval have the same density.
 
+ We can find that in this case, HPD has a narrower interval compare to ETI. This is because the distribution is right-skewed. Right-skewed distribution indicates that more data points are placed on the right side of the peak of the distribution. Since ETI considers amount of data, while HPD interval considers density, it does make sense that ETI has a bigger value for the upper end point of the interval in this right-skewed distribution. 
 
 3. Bayesian inference for the concentration parameter in the von Mises distribution.
 This exercise is concerned with directional data. The point is to show you that
