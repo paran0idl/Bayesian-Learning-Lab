@@ -98,6 +98,10 @@ $$\tau^2=\frac{\sum_{i=1}^{n}(\log y_i-\mu)^2}{n}$$
  
 (a) Simulate 10,000 draws from the posterior of $\sigma^2$ (assuming $\mu=3.7$) and compare with the theoretical $Inv-\chi^2(n,\tau^2)$ posterior distribution.
 
+By checking the distribution table, we can find the theoretical mean and standard deviation for Inv-chisq distribution
+
+$$E(\theta)=\frac{1}{v-2}, v>2$$
+$$var(\theta)=\frac{2}{(v-2)^2(v-4)},v>4$$
 ```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 y = c(44,25,45,52, 30, 63, 19, 50, 34, 67)
 log_y = log(y)
@@ -110,11 +114,20 @@ X=rchisq(10000,n-1)
 simu_sigmas_sq=(n-1)*tausq/X
 #hist(simu_sigmas,breaks=100,main = "Histogram of simulated sigma square from posterior")
 
+cat("\nTHEORETICAL\n")
+cat("Mean",1/(n-2))
+cat("\nStandard deviation",2/((n-2)^2*(n-4)))
+
+cat("\nSIMULATION\n")
+cat("Mean:",mean(simu_sigmas_sq))
+cat("\nStandard deviation",sd(simu_sigmas_sq))
+
 # theoretical
 sigmas_sq=dinvchisq(seq(0,3,0.001),nu=n,tau=tausq)
+
 #plot(sigmas_sq,main = "Density of theoretical function")
 d=density(simu_sigmas_sq)
-ggplot()+geom_col(aes(x=d$x,y=d$y,colour="Simulation"))+geom_line(aes(x=seq(0,3,0.001),y=sigmas_sq,colour="Theoretical"))+xlab("X")
+ggplot()+geom_col(aes(x=d$x,y=d$y,colour="Simulation"))+geom_line(aes(x=seq(0,3,0.001),y=sigmas_sq,colour="Theoretical"))+xlab("X")+ylab("Density")
 
 # plot(x=1:10000, y=sigmas, main="Comparing Simulated Values and Real Value", xlab="Trial", ylab="Simulated Sigma-Squared")
 # theoretical_val=n*tausq/(n-2)
