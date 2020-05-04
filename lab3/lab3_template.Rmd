@@ -1,0 +1,95 @@
+---
+title:  |
+        | Computer Lab 3
+        | 732A54 - Bayesian Learning
+
+author: | 
+        | Jooyoung Lee - ```joole336```
+        | Zuxiang Li - ```zuxli371```
+        
+date : \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed("12345")
+library(ggplot2)
+
+```
+
+### 1. Normal model, mixture of normal model with semi-conjugate prior.
+
+The data rainfall.dat consist of daily records, from the beginning of 1948 to the
+end of 1983, of precipitation (rain or snow in units of $\frac{1}{100}$ inch, and records of zero precipitation are excluded) at Snoqualmie Falls, Washington. Analyze the data using the following two models.
+
+(a) Normal model.
+Assume the daily precipitation$\{y_1,\cdots ,y_n\}$ are independent normally distributed, $y_1, \cdots, y_n|\mu,\sigma^2~N(\mu,\sigma^2)$ where both $\mu$ and $\sigma^2$ are unknown. Let $\mu~N(\mu_0,\tau^2)$ independently of $\sigma^2 \sim Inv-\chi^2(v_0,\sigma^2)$
+
+i. Implement (code!) a Gibbs sampler that simulates from the joint posterior $p(\mu,\sigma^2|y_1,\dots,y_n)$ The full conditional posteriors are given on the slides from Lecture 7.
+
+ii. Analyze the daily precipitation using your Gibbs sampler in (a)-i. Evaluate the convergence of the Gibbs sampler by suitable graphical methods, for example by plotting the trajectories of the sampled Markov chains.
+
+(b) Mixture normal model.
+Let us now instead assume that the daily precipitation $\{y_1, .., y_n\}$ follow an iid two-component mixture of normals model:
+
+$$p(y_i|\mu,\sigma^2,\pi)=\pi N(y_i|\mu_1,\sigma^2_1)+(1-\pi)N(y_i|\mu_2,\sigma^2_2)$$,
+where
+$$\mu=(\mu_1,\mu_2) \ and\ \sigma^2=(\sigma^2_1,\sigma^2_2)$$
+Use the Gibbs sampling data augmentation algorithm in NormalMixtureGibbs.R (available under Lecture 7 on the course page) to analyze the daily precipita- tion data. Set the prior hyperparameters suitably. Evaluate the convergence of the sampler.
+
+(c) Graphical comparison.
+Plot the following densities in one figure: 1) a histogram or kernel density estimate of the data. 2) Normal density $N(y_i|\mu,\sigma^2)$ in (a); 3) Mixture of normals density. $p(y_i|\mu,\sigma^2,\pi)$ in (b). Base your plots on the mean over all posterior draws.
+
+
+2. Metropolis Random Walk for Poisson regression. 
+Consider the following Poisson regression model
+$$y_i|\beta \sim Poisson[exp(X_i^T\beta)],i=1,\cdots,n$$
+
+where $y_i$ is the count for the ith observation in the sample and xi is the p-dimensional vector with covariate observations for the ith observation. Use the data set eBayNumberOfBidderData.dat. This dataset contains observations from 1000 eBay auctions of coins. The response variable is nBids and records the number of bids in each auction. The remaining variables are features/covariates (x):
+
+
+• Const (for the intercept)
+• PowerSeller (is the seller selling large volumes on eBay?)
+• VerifyID (is the seller verified by eBay?)
+• Sealed (was the coin sold sealed in never opened envelope?)
+• MinBlem (did the coin have a minor defect?)
+• MajBlem (a major defect?)
+• LargNeg (did the seller get a lot of negative feedback from customers?)
+• LogBook (logarithm of the coins book value according to expert sellers. Stan- dardized)
+• MinBidShare (a variable that measures ratio of the minimum selling price (starting price) to the book value. Standardized).
+
+(a) Obtain the maximum likelihood estimator of $\beta$ in the Poisson regression model for the eBay data [Hint: glm.R, don’t forget that glm() adds its own intercept so don’t input the covariate Const]. Which covariates are significant?
+
+(b) Let’s now do a Bayesian analysis of the Poisson regression. Let the prior be $\beta \sim N[0,100 \cdot (X^TX)^{-1}]$ where X is the n x p covariate matrix. This is a commonly used prior which is called Zellner’s g-prior. Assume first that the posterior density is approximately multivariate normal:
+$$\beta|y \sim N(\tilde{\beta},J^{-1}_y(\tilde{\beta}))$$
+where $\tilde{\beta}$ is the posterior mode and $J_y(\tilde{\beta})$ is the negative Hessian at the posterior mode. $\tilde{\beta}$ and $J_y(\tilde{\beta})$ can be obtained by numerical optimization (optim.R) exactly like you already did for the logistic regression in Lab 2 (but with the log posterior function replaced by the corresponding one for the Poisson model, which you have to code up.).
+
+(c) Now, let’s simulate from the actual posterior of $\beta$ using the Metropolis algo- rithm and compare with the approximate results in b). Program a general function that uses the Metropolis algorithm to generate random draws from an arbitrary posterior density. In order to show that it is a general function for any model, I will denote the vector of model parameters by $\theta$. Let the proposal density be the multivariate normal density mentioned in Lecture 8 (random walk Metropolis).
+$$\theta_p|\theta^{(i-1)} \sim N(\theta^{(i-1)},c\Sigma)$$
+where $\sigma=J^{-1}_y(\tilde{\beta})$ obtained in b). The value c is a tuning parameter and should be an input to your Metropolis function. The user of your Metropo- lis function should be able to supply her own posterior density function, not necessarily for the Poisson regression, and still be able to use your Metropolis function. This is not so straightforward, unless you have come across function objects in R and the triple dot (...) wildcard argument. I have posted a note (HowToCodeRWM.pdf) on the course web page that describes how to do this in R.
+
+Now, use your new Metropolis function to sample from the posterior of $\beta$ in the Poisson regression for the eBay dataset. Assess MCMC convergence by graphical methods.
+
+(d) Use the MCMC draws from c) to simulate from the predictive distribution of the number of bidders in a new auction with the characteristics below. Plot the predictive distribution. What is the probability of no bidders in this new auction?
+
+
+• PowerSeller = 1
+• VerifyID = 1
+• Sealed = 1
+• MinBlem = 0
+• MajBlem = 0
+• LargNeg = 0
+• LogBook = 1
+• MinBidShare = 0.5
+
+\newpage
+
+# Appendix A : Code Question 1
+```{r, ref.label=knitr::all_labels(q1==TRUE),echo=TRUE,eval=FALSE}
+```
+
+\newpage
+# Appendix B : Code Question 2
+```{r, ref.label=knitr::all_labels(q2==TRUE),echo=TRUE,eval=FALSE}
+```
