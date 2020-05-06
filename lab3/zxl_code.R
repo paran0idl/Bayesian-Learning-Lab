@@ -20,8 +20,8 @@ sigma_sq=1
 tau_0_sq=1
 mu_0=mean(data[,1])
 
-v_0=4
-sigma_0_sq=sd(data[,1])^2
+v_0=1
+sigma_0_sq=var(data[,1])^2
 #sigma_0_sq=(v_0*sigma_0_sq+sum(data[,1]-mu)^2)/(n+v_0)
 for(i in 1:1000){
   # update mu
@@ -32,9 +32,11 @@ for(i in 1:1000){
   
   # update sigma
   v_n=v_0+n
-  sigma_0_sq=(v_0*sigma_0_sq+sum(data[,1]-mu)^2)/(n+v_0)
-  sigma_sq=v_n*rinvchisq(1,nu=v_n,tau=sigma_0_sq)/sigma_0_sq
-  
+  X=rchisq(1,n-1)
+  sigma_sq=(n-1)*sum((data[,1]-x_mean)^2)/(n)/X
+  # sigma_0_sq=(v_0*sigma_0_sq+sum(data[,1]-mu)^2)/(n+v_0)
+  # sigma_sq=v_n*rinvchisq(1,nu=v_n,tau=sigma_0_sq)/sigma_0_sq
+  # 
   tmp=data.frame(mu=mu,sigma_sq=sigma_sq)
   params=rbind(params,tmp)
 }
@@ -205,7 +207,7 @@ log_likehood_poisson=function(y,x,betas){
   log_likelihood=rep(0,n)
   for(i in 1:n){
     if(y[i]==0){
-      log_likelihood[i]=0
+      log_likelihood[i]=-lambda[i]
     }else{
     log_likelihood[i]=-lambda[i]+log(lambda[i])*y[i]-log(y_prod[i])
     }
@@ -233,3 +235,48 @@ op=optim(starting_value,log_posterior,gr=NULL,response,covariates,method=c("BFGS
 posterior_mode=op$par
 posterior_cov=-solve(op$hessian)
 
+
+n=1:1000
+series=matrix(nrow = 1000,ncol=p)
+series[1,]=rep(0,p)
+for(i in 2:1000){
+  previous_theta=series[i-1,]
+  new_theta=rmvnorm(1,mean=previous_theta,sigma = posterior_cov)
+  u=runif(1)
+
+  # to get p(theta_p) and p(theta_i-1)
+  p_new_theta=dmvnorm(new_theta,mean=previous_theta,sigma=posterior_cov)
+  if(i==2){
+    p_previous_theta=1
+  }else{
+    p_previous_theta=dmvnorm(previous_theta,mean=series[i-2,],sigma=posterior_cov)
+  }
+  # for p(y|theta_p) and p(y|theta_i-1)
+  p_y_theta_p=vector(length=1000)
+  p_y_theta_i_1=vector(length=1000)
+  for(i in 1:1000){
+    new_lambda=exp(covariates[i,]%*%t(new_theta))
+    previous_lambda=exp(covariates[i,]%*%t(previous_theta))
+    p_y_theta_p[i]=dpois(response[i],new_lambda)
+    p_y_theta_i_1[i]=dpois(response[i],previous_lambda)
+  }
+  prob=exp(sum(log(p_y_theta_p))+log(p_new_theta)-sum(log(p_y_theta_i_1))-log(p_previous_theta))
+  #prob=exp(log(prod(p_y_theta_p)*p_new_theta)-log(prod(p_y_theta_i_1)*p_previous_theta))
+  print(prob)
+  alpha=min(1,prob)
+  if(u<alpha){
+    series[i,]=new_theta
+  }else{
+    series[i,]=previous_theta
+  }
+}
+t=rmvnorm(1,mean=rep(0,p),sigma = 100*posterior_cov)
+dmvnorm(t,mean=rep(0,p),sigma = 100*posterior_cov)
+
+for(i in 1:1000){
+  lambda=exp(t(covariates[i,])%*%rep(1,p))
+  print(dpois(response[i],lambda))
+}
+
+
+rpois(1,)
