@@ -40,11 +40,12 @@ joint_simulation = function(data, niteration){
 }
 
 ### simulation and plotting
+set.seed(12345)
 simulation_result = joint_simulation(data = data1, niteration = 1000)
 plot(simulation_result$mu)
 hist(simulation_result$mu)
-plot(simulation_result$sigmasq, ylim = c(0,3000))
-hist(simulation_result$sigmasq, xlim = c(0,3000), breaks = 1000)
+plot(simulation_result$sigmasq, ylim = c(0,7000))
+hist(simulation_result$sigmasq, xlim = c(0,7000), breaks = 1000)
 #### simulated mu values show somewhat similar distribution to normal distribution,
 #### although it is a little bit left skewed. no clear convergence -------- check code needed i think
 ##### one possible reason: maybe it is because simulated mu value was already very similar
