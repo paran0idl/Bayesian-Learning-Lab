@@ -74,26 +74,26 @@ hist(data1[,1], breaks = 50, main = "Histogram of the Data", xlab = "Precipitati
 ## low mean, and the other one with high mean
 
 ## change the form of data into matrix for more convenient use
-data(faithful)
-rawData <- faithful
-x <- as.matrix(rawData['eruptions'])
+#data(faithful)
+#rawData <- faithful
+x <- as.matrix(data1[,1])
 
 # Model options
-nComp <- 4    # Number of mixture components
+nComp <- 2    # Number of mixture components
 
 # Prior options
 alpha <- 10*rep(1,nComp) # Dirichlet(alpha)
-muPrior <- rep(0,nComp) # Prior mean of mu
+muPrior <- c(20, 160) # Prior mean of mu by seeing the histogram of the data
 tau2Prior <- rep(10,nComp) # Prior std of mu
 sigma2_0 <- rep(var(x),nComp) # s20 (best guess of sigma2)
-nu0 <- rep(4,nComp) # degrees of freedom for prior on sigma2
+nu0 <- rep(3,nComp) # degrees of freedom for prior on sigma2, set it as small value to make prior distribution of sigmasq vague
 
 # MCMC options
 nIter <- 1000 # Number of Gibbs sampling draws
 
 # Plotting options
 plotFit <- TRUE
-lineColors <- c("blue", "green", "magenta", 'yellow')
+lineColors <- c("blue", "green")
 sleepTime <- 0.1 # Adding sleep time between iterations for plotting
 ################   END USER INPUT ###############
 
@@ -138,12 +138,14 @@ mixDensMean <- rep(0,length(xGrid))
 effIterCount <- 0
 ylim <- c(0,2*max(hist(x)$density))
 
+storage_mu = data.frame(mu1 = as.numeric(), mu2 = as.numeric(),stringsAsFactors = FALSE)
+storage_sigmasq = data.frame( sigmasq1 = as.numeric(), sigmasq2 = as.numeric(), stringsAsFactors = FALSE)
 
 for (k in 1:nIter){
-  message(paste('Iteration number:',k))
+  #message(paste('Iteration number:',k))
   alloc <- S2alloc(S) # Just a function that converts between different representations of the group allocations
   nAlloc <- colSums(S)
-  print(nAlloc)
+  #print(nAlloc)
   # Update components probabilities
   pi <- rDirichlet(alpha + nAlloc)
   
@@ -157,11 +159,16 @@ for (k in 1:nIter){
     tau2Post <- 1/precPost
     mu[j] <- rnorm(1, mean = muPost, sd = sqrt(tau2Post))
   }
+  new_mu = data.frame(mu1 = mu[1], mu2 = mu[2])
+  storage_mu = rbind(storage_mu, new_mu)
   
   # Update sigma2's
   for (j in 1:nComp){
     sigma2[j] <- rScaledInvChi2(1, df = nu0[j] + nAlloc[j], scale = (nu0[j]*sigma2_0[j] + sum((x[alloc == j] - mu[j])^2))/(nu0[j] + nAlloc[j]))
   }
+  new_sigma2 = data.frame(sigmasq1 = sigma2[1], sigmasq2 = sigma2[2])
+  storage_sigmasq = rbind(storage_sigmasq, new_sigma2)
+  
   
   # Update allocation
   for (i in 1:nObs){
@@ -174,28 +181,62 @@ for (k in 1:nIter){
   # Printing the fitted density against data histogram
   if (plotFit && (k%%1 ==0)){
     effIterCount <- effIterCount + 1
-    hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = paste("Iteration number",k), ylim = ylim)
+    #hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = paste("Iteration number",k), ylim = ylim)
     mixDens <- rep(0,length(xGrid))
     components <- c()
     for (j in 1:nComp){
       compDens <- dnorm(xGrid,mu[j],sd = sqrt(sigma2[j]))
       mixDens <- mixDens + pi[j]*compDens
-      lines(xGrid, compDens, type = "l", lwd = 2, col = lineColors[j])
+      #lines(xGrid, compDens, type = "l", lwd = 2, col = lineColors[j])
       components[j] <- paste("Component ",j)
     }
     mixDensMean <- ((effIterCount-1)*mixDensMean + mixDens)/effIterCount
     
-    lines(xGrid, mixDens, type = "l", lty = 2, lwd = 3, col = 'red')
-    legend("topleft", box.lty = 1, legend = c("Data histogram",components, 'Mixture'), 
-           col = c("black",lineColors[1:nComp], 'red'), lwd = 2)
+    #lines(xGrid, mixDens, type = "l", lty = 2, lwd = 3, col = 'red')
+    #legend("topleft", box.lty = 1, legend = c("Data histogram",components, 'Mixture'), 
+     #      col = c("black",lineColors[1:nComp], 'red'), lwd = 2)
     Sys.sleep(sleepTime)
   }
   
 }
 
-hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted density")
-lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 4, col = "red")
-lines(xGrid, dnorm(xGrid, mean = mean(x), sd = apply(x,2,sd)), type = "l", lwd = 2, col = "blue")
-legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","Normal density"), col=c("black","red","blue"), lwd = 2)
+hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted mixture density")
+lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 1, col = "red")
+#lines(xGrid, dnorm(xGrid, mean = mean(x), sd = apply(x,2,sd)), type = "l", lwd = 2, col = "blue")
+legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density"), col=c("black","red"), lwd = 2)
 
 #########################    Helper functions    ##############################################
+
+### traceplot of mu1 and mu2
+cum_mu1 = cumsum(storage_mu$mu1)
+cum_mu2 = cumsum(storage_mu$mu2)
+cum_sigmasq1 = cumsum(storage_sigmasq$sigmasq1)
+cum_sigmasq2 = cumsum(storage_sigmasq$sigmasq2)
+for (i in 1:nIter){
+  cum_mu1[i] = cum_mu1[i]/i
+  cum_mu2[i] = cum_mu2[i]/i
+  cum_sigmasq1[i] = cum_sigmasq1[i]/i
+  cum_sigmasq2[i] = cum_sigmasq2[i]/i
+}
+
+par(mfrow = c(1,2))
+plot(cum_mu1, type = "l", main="Traceplot of mu1", xlab="MCMC Iteration")
+plot(cum_mu2, type = "l", main ="Traceplot of mu2", xlab = "MCMC Iteration")
+plot(cum_sigmasq1, type = "l", main="Traceplot of sigmasq1", xlab="MCMC Iteration")
+plot(cum_sigmasq2, type = "l", main ="Traceplot of sigmasq2", xlab = "MCMC Iteration")
+
+
+
+## 1-3.
+### histogram of the given data
+hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Model Comparison")
+### adding
+#### density of mixture model using the mean of simulated mus and sigmasqs
+lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 1, col = "red")
+#### density of normal model using the mean of simulated mu and sigmasq
+lines(xGrid, dnorm(xGrid, mean=cum_mu[length(cum_mu)], sd = sqrt(cum_sigmasq[length(cum_sigmasq)])), type="l", lwd=2, lty=1, col="blue")
+legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","Normal density"), col=c("black","red","blue"), lwd = 2)
+
+
+
+# Question2
