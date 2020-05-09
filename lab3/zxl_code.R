@@ -21,7 +21,7 @@ tau_0_sq=1
 mu_0=mean(data[,1])
 
 v_0=1
-sigma_0_sq=var(data[,1])^2
+sigma_0_sq=var(data[,1])
 #sigma_0_sq=(v_0*sigma_0_sq+sum(data[,1]-mu)^2)/(n+v_0)
 for(i in 1:1000){
   # update mu
@@ -236,47 +236,114 @@ posterior_mode=op$par
 posterior_cov=-solve(op$hessian)
 
 
-n=1:1000
-series=matrix(nrow = 1000,ncol=p)
-series[1,]=rep(0,p)
-for(i in 2:1000){
-  previous_theta=series[i-1,]
-  new_theta=rmvnorm(1,mean=previous_theta,sigma = posterior_cov)
-  u=runif(1)
-
-  # to get p(theta_p) and p(theta_i-1)
-  p_new_theta=dmvnorm(new_theta,mean=previous_theta,sigma=posterior_cov)
-  if(i==2){
-    p_previous_theta=1
-  }else{
-    p_previous_theta=dmvnorm(previous_theta,mean=series[i-2,],sigma=posterior_cov)
+log_likehood_poisson1=function(y,x,betas){
+  lambda=exp(x%*%as.vector(betas))
+  y_prod=rep(0,n)
+  for(i in 1:n){
+    y_prod[i]=prod(y[i])
   }
-  # for p(y|theta_p) and p(y|theta_i-1)
-  p_y_theta_p=vector(length=1000)
-  p_y_theta_i_1=vector(length=1000)
-  for(i in 1:1000){
-    new_lambda=exp(covariates[i,]%*%t(new_theta))
-    previous_lambda=exp(covariates[i,]%*%t(previous_theta))
-    p_y_theta_p[i]=dpois(response[i],new_lambda)
-    p_y_theta_i_1[i]=dpois(response[i],previous_lambda)
+  log_likelihood=rep(0,n)
+  for(i in 1:n){
+    if(y[i]==0){
+      log_likelihood[i]=-lambda[i]
+    }else{
+      log_likelihood[i]=-lambda[i]+log(lambda[i])*y[i]-log(y_prod[i])
+    }
   }
-  prob=exp(sum(log(p_y_theta_p))+log(p_new_theta)-sum(log(p_y_theta_i_1))-log(p_previous_theta))
-  #prob=exp(log(prod(p_y_theta_p)*p_new_theta)-log(prod(p_y_theta_i_1)*p_previous_theta))
-  print(prob)
-  alpha=min(1,prob)
-  if(u<alpha){
-    series[i,]=new_theta
-  }else{
-    series[i,]=previous_theta
-  }
-}
-t=rmvnorm(1,mean=rep(0,p),sigma = 100*posterior_cov)
-dmvnorm(t,mean=rep(0,p),sigma = 100*posterior_cov)
-
-for(i in 1:1000){
-  lambda=exp(t(covariates[i,])%*%rep(1,p))
-  print(dpois(response[i],lambda))
+  return(sum(log_likelihood))
 }
 
 
-rpois(1,)
+# RWM algorithm
+
+# init
+RWMSampler=function(x,y,maxit){
+  theta_series=matrix(nrow = maxit,ncol=p)
+  theta_series[1,]=rep(0,p)
+  theta_logs=vector(length = maxit)
+  theta_logs[1]=log_likehood_poisson1(y,x,theta_series[1,])+1
+  for(i in 2:maxit){
+    u=runif(1)
+    # sample from proposal
+    theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=posterior_cov)
+    #print("theta_p")
+    log_llik=log_likehood_poisson1(y,x,theta_p)
+    #print("log_llik")
+    log_pr=log(dmvnorm(theta_p,mean=theta_series[i-1,],sigma=posterior_cov))
+    #print("logpr")
+    current_log_d=log_llik+log_pr
+    alpha=min(1,exp(current_log_d-theta_logs[i-1]))
+    if(u<alpha){
+      theta_series[i,]=theta_p
+      theta_logs[i]=current_log_d
+    }else{
+      theta_series[i,]=theta_series[i-1,]
+      theta_logs[i]=theta_logs[i-1]
+    }
+  }
+  return(list(theta_series=theta_series,theta_logs=theta_logs))
+}
+
+ddd=RWMSampler(x=covariates,y=response,maxit = 10000)
+tmp=ddd$theta_series
+plot(ddd$theta_series[,9])
+ddd$theta_series[10000,]
+
+
+
+new_bidder=matrix(c(1,1,1,1,0,0,0,1,0.5),nrow = 1)
+co=as.matrix(ddd$theta_series[10000,])
+dim(new_bidder)
+dim(co)
+
+pred=vector(length=10000)
+for(i in 1:10000){
+  pred[i]=rpois(1,exp(new_bidder%*%co))
+}
+hist(pred)
+# log posterior = log likelihood + log prior
+# 
+# n=1:1000
+# series=matrix(nrow = 1000,ncol=p)
+# series[1,]=rep(0,p)
+# for(i in 2:1000){
+#   previous_theta=series[i-1,]
+#   new_theta=rmvnorm(1,mean=previous_theta,sigma = posterior_cov)
+#   u=runif(1)
+# 
+#   # to get p(theta_p) and p(theta_i-1)
+#   p_new_theta=dmvnorm(new_theta,mean=previous_theta,sigma=posterior_cov)
+#   if(i==2){
+#     p_previous_theta=1
+#   }else{
+#     p_previous_theta=dmvnorm(previous_theta,mean=series[i-2,],sigma=posterior_cov)
+#   }
+#   # for p(y|theta_p) and p(y|theta_i-1)
+#   p_y_theta_p=vector(length=1000)
+#   p_y_theta_i_1=vector(length=1000)
+#   for(i in 1:1000){
+#     new_lambda=exp(covariates[i,]%*%t(new_theta))
+#     previous_lambda=exp(covariates[i,]%*%t(previous_theta))
+#     p_y_theta_p[i]=dpois(response[i],new_lambda)
+#     p_y_theta_i_1[i]=dpois(response[i],previous_lambda)
+#   }
+#   prob=exp(sum(log(p_y_theta_p))+log(p_new_theta)-sum(log(p_y_theta_i_1))-log(p_previous_theta))
+#   #prob=exp(log(prod(p_y_theta_p)*p_new_theta)-log(prod(p_y_theta_i_1)*p_previous_theta))
+#   print(prob)
+#   alpha=min(1,prob)
+#   if(u<alpha){
+#     series[i,]=new_theta
+#   }else{
+#     series[i,]=previous_theta
+#   }
+# }
+# t=rmvnorm(1,mean=rep(0,p),sigma = 100*posterior_cov)
+# dmvnorm(t,mean=rep(0,p),sigma = 100*posterior_cov)
+# 
+# for(i in 1:1000){
+#   lambda=exp(t(covariates[i,])%*%rep(1,p))
+#   print(dpois(response[i],lambda))
+# }
+# 
+# 
+# rpois(1,)
