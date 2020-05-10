@@ -199,22 +199,11 @@ p=dim(covariates)[2]
 n=dim(covariates)[1]
 
 log_likehood_poisson=function(y,x,betas){
-  lambda=exp(x%*%betas)
-  y_prod=rep(0,n)
-  for(i in 1:n){
-    y_prod[i]=prod(y[i])
-  }
   log_likelihood=rep(0,n)
   for(i in 1:n){
-    if(y[i]==0){
-      log_likelihood[i]=-lambda[i]
-    }else{
-    log_likelihood[i]=-lambda[i]+log(lambda[i])*y[i]-log(y_prod[i])
-    }
+    log_likelihood[i]=y[i]*t(betas)%*%x[i,]-exp(t(betas)%*%x[i,])-log(factorial(y[i]))
   }
-  #log_likelihood=-n*lambda+log(lambda)*sum(y)-sum(log(y_prod))
   return(sum(log_likelihood))
-  #return(log(prod(numerator^y/(1+numerator))))
 }
 
 log_prior_likelihood=function(betas){

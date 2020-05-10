@@ -241,13 +241,15 @@ legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","N
 
 # Question2
 ## importing data & set variables
-data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab3/eBayNumberOfBidderData.dat", header=TRUE)
+#data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab3/eBayNumberOfBidderData.dat", header=TRUE)
+data2 = read.table("lab3/eBayNumberOfBidderData.dat", header=TRUE)
 Y = as.matrix(data2$nBids)
 X = as.matrix(data2[,-1])
 
 ##2-1.
 poisson_model = glm(nBids~0+., data = data2, family = "poisson")
 summary(poisson_model)
+poisson_model$coefficients
 ### significant covariates are:
 #### Constant
 #### VerifyID
@@ -272,30 +274,22 @@ sigma0 = 100*solve(t(X)%*%X)
 ### defining log_posterior functions used to find the mode of the distributions
 minuslog_post = function(betas, x, y) {
   
-  lambda = exp(x %*% betas)
-  
-  loglikeli = 0
-  for (i in 1:length(y)){
-    first = y[i,1] * log(lambda[i,1])
-    second = -lambda[i,1]
-    third = log(factorial(y[i,1]))
-    loglikeli = loglikeli + (first+second-third)
+  log_likelihood=rep(0,length(y))
+  for(i in 1:length(y)){
+    log_likelihood[i]=y[i]*t(betas)%*%x[i,]-exp(t(betas)%*%x[i,])-log(factorial(y[i]))
   }
-
-  # since likelihood value itself is <1, prevent it from reaching -Inf to make calculation work
-  if (abs(loglikeli) == Inf) { loglikeli = -(1e+7) }
+  
   
   logprior = dmvnorm(betas, mean = as.matrix(mu0), sigma0, log=TRUE)
-  
   # since it is log posterior, it is proportional to sum of loglikli&logprior
   # since optim function looks for minimum, minus posterior dist should be used
-  return(-loglikeli-logprior)
+  return(-sum(log_likelihood)-logprior)
 }
 
 ### objective is to find posterior distribution of betas.
 ### since the objective is to find the maximum, set fn as minus posterior
 initials = rep(0, n_param)
-optimum_result = optim(initials, minuslog_post, X, Y, gr = NULL, method = "BFGS", control = list(fnscale=-1), hessian = TRUE)
+optimum_result = optim(initials, minuslog_post, X, Y, gr = NULL, method = "BFGS", hessian = TRUE)
 
 post_betas_mode = optimum_result$par  ### these turn out to be 0s... 
 post_cov = -solve(optimum_result$hessian)
