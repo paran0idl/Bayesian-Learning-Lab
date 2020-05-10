@@ -240,3 +240,81 @@ legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","N
 
 
 # Question2
+## importing data & set variables
+data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab3/eBayNumberOfBidderData.dat", header=TRUE)
+Y = as.matrix(data2$nBids)
+X = as.matrix(data2[,-1])
+
+##2-1.
+poisson_model = glm(nBids~0+., data = data2, family = "poisson")
+summary(poisson_model)
+### significant covariates are:
+#### Constant
+#### VerifyID
+#### Sealed
+#### MajBlem
+#### LogBook
+#### MinBidShare ------------ these covariates have p-value less than 0.02
+
+##2-2.
+prior_cov = cov(X)
+
+
+### basic setups
+library(mvtnorm)
+covariates = names(data2[,-1])
+n_param = ncol(X)
+
+### hyperparameters for priors
+mu0 = rep(0, times = n_param)
+sigma0 = 100*solve(t(X)%*%X)
+
+### defining log_posterior functions used to find the mode of the distributions
+minuslog_post = function(betas, x, y) {
+  
+  lambda = exp(x %*% betas)
+  
+  loglikeli = 0
+  for (i in 1:length(y)){
+    first = y[i,1] * log(lambda[i,1])
+    second = -lambda[i,1]
+    third = log(factorial(y[i,1]))
+    loglikeli = loglikeli + (first+second-third)
+  }
+
+  # since likelihood value itself is <1, prevent it from reaching -Inf to make calculation work
+  if (abs(loglikeli) == Inf) { loglikeli = -(1e+7) }
+  
+  logprior = dmvnorm(betas, mean = as.matrix(mu0), sigma0, log=TRUE)
+  
+  # since it is log posterior, it is proportional to sum of loglikli&logprior
+  # since optim function looks for minimum, minus posterior dist should be used
+  return(-loglikeli-logprior)
+}
+
+### objective is to find posterior distribution of betas.
+### since the objective is to find the maximum, set fn as minus posterior
+initials = rep(0, n_param)
+optimum_result = optim(initials, minuslog_post, X, Y, gr = NULL, method = "BFGS", control = list(fnscale=-1), hessian = TRUE)
+
+post_betas_mode = optimum_result$par  ### these turn out to be 0s... 
+post_cov = -solve(optimum_result$hessian)
+names(post_betas_mode) = covariates
+colnames(post_cov) = covariates
+rownames(post_cov) = covariates
+
+
+## 2-3
+library(mvtnorm)
+RMW_sample = function(prev_betas, tuning, sigma, logposterior, ...) {
+  proposal = rmvnorm(1, mean = prev_betas, sigma = tuning*sigma)
+  alpha = min(1, logposterior(proposal, x, y)/logposterior(prev_betas, x, y))
+  u = runif(1)
+  if (u < alpha) {return(proposal)}
+  else {return(prev_betas)}
+}
+
+example = matrix(NA, nrow = 10, ncol=n_param)
+for (i in 1:10){
+  example[i,] = RMW_sample(post_betas_mode, tuning = 1, sigma = post_cov, logposterior = minuslog_post, X, Y)
+}
