@@ -199,9 +199,9 @@ p=dim(covariates)[2]
 n=dim(covariates)[1]
 
 log_likehood_poisson=function(y,x,betas){
-  log_likelihood=rep(0,n)
+  log_likelihood=vector(length = n)
   for(i in 1:n){
-    log_likelihood[i]=y[i]*t(betas)%*%x[i,]-exp(t(betas)%*%x[i,])-log(factorial(y[i]))
+    log_likelihood[i]=y[i]*betas%*%x[i,]-exp(betas%*%x[i,])-log(factorial(y[i]))
   }
   return(sum(log_likelihood))
 }
@@ -225,19 +225,10 @@ posterior_mode=op$par
 posterior_cov=-solve(op$hessian)
 
 
-log_likehood_poisson1=function(y,x,betas){
-  lambda=exp(x%*%as.vector(betas))
-  y_prod=rep(0,n)
+log_likehood_poisson=function(y,x,betas){
+  log_likelihood=vector(length = n)
   for(i in 1:n){
-    y_prod[i]=prod(y[i])
-  }
-  log_likelihood=rep(0,n)
-  for(i in 1:n){
-    if(y[i]==0){
-      log_likelihood[i]=-lambda[i]
-    }else{
-      log_likelihood[i]=-lambda[i]+log(lambda[i])*y[i]-log(y_prod[i])
-    }
+    log_likelihood[i]=y[i]*betas%*%x[i,]-exp(betas%*%x[i,])-log(factorial(y[i]))
   }
   return(sum(log_likelihood))
 }
@@ -250,21 +241,23 @@ RWMSampler=function(x,y,maxit){
   theta_series=matrix(nrow = maxit,ncol=p)
   theta_series[1,]=rep(0,p)
   theta_logs=vector(length = maxit)
-  theta_logs[1]=log_likehood_poisson1(y,x,theta_series[1,])+1
+  theta_logs[1]=log_likehood_poisson(y,x,theta_series[1,])+1
   for(i in 2:maxit){
+    print(i)
     u=runif(1)
     # sample from proposal
     theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=posterior_cov)
     #print("theta_p")
     log_llik=log_likehood_poisson1(y,x,theta_p)
     #print("log_llik")
-    log_pr=log(dmvnorm(theta_p,mean=theta_series[i-1,],sigma=posterior_cov))
+    log_pr=dmvnorm(theta_p,mean=theta_series[i-1,],sigma=posterior_cov,log = TRUE)
     #print("logpr")
     current_log_d=log_llik+log_pr
     alpha=min(1,exp(current_log_d-theta_logs[i-1]))
     if(u<alpha){
       theta_series[i,]=theta_p
       theta_logs[i]=current_log_d
+
     }else{
       theta_series[i,]=theta_series[i-1,]
       theta_logs[i]=theta_logs[i-1]
@@ -277,11 +270,12 @@ ddd=RWMSampler(x=covariates,y=response,maxit = 10000)
 tmp=ddd$theta_series
 plot(ddd$theta_series[,9])
 ddd$theta_series[10000,]
-
+colMeans(tmp)
 
 
 new_bidder=matrix(c(1,1,1,1,0,0,0,1,0.5),nrow = 1)
-co=as.matrix(ddd$theta_series[10000,])
+#co=as.matrix(ddd$theta_series[10000,])
+co=as.matrix(colMeans(tmp))
 dim(new_bidder)
 dim(co)
 

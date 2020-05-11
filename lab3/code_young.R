@@ -276,7 +276,7 @@ minuslog_post = function(betas, x, y) {
   
   log_likelihood=rep(0,length(y))
   for(i in 1:length(y)){
-    log_likelihood[i]=y[i]*t(betas)%*%x[i,]-exp(t(betas)%*%x[i,])-log(factorial(y[i]))
+    log_likelihood[i]=y[i]*betas%*%x[i,]-exp(betas%*%x[i,])-log(factorial(y[i]))
   }
   
   
