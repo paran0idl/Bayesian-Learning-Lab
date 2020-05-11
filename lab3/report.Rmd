@@ -82,13 +82,13 @@ cum_mu = cumsum(simulation_result$mu)
 for (i in 1:length(cum_mu)){
   cum_mu[i] = cum_mu[i]/i
 }
-plot(cum_mu, main= "Trace plot of MCMC iteration of mu", xlab="MCMC iteration", ylab="Cummulative Estimate")
+plot(cum_mu, main= "Traceplot of MCMC iteration of mu", xlab="MCMC iteration", ylab="Cummulative Estimate")
 
 cum_sigmasq = cumsum(simulation_result$sigmasq)
 for (i in 1:length(cum_sigmasq)) {
   cum_sigmasq[i] = cum_sigmasq[i]/i
 }
-plot(cum_sigmasq, main= "Trace plot of MCMC iteration of sigma^2", xlab="MCMC iteration", ylab="Cummulative Estimate")
+plot(cum_sigmasq, main= "Traceplot of MCMC iteration of sigma^2", xlab="MCMC iteration", ylab="Cummulative Estimate")
 ```
 
 
@@ -98,7 +98,7 @@ Let us now instead assume that the daily precipitation $\{y_1, .., y_n\}$ follow
 $$p(y_i|\mu,\sigma^2,\pi)=\pi N(y_i|\mu_1,\sigma^2_1)+(1-\pi)N(y_i|\mu_2,\sigma^2_2)$$,
 where
 $$\mu=(\mu_1,\mu_2) \ and\ \sigma^2=(\sigma^2_1,\sigma^2_2)$$
-Use the Gibbs sampling data augmentation algorithm in NormalMixtureGibbs.R (available under Lecture 7 on the course page) to analyze the daily precipita- tion data. Set the prior hyperparameters suitably. Evaluate the convergence of the sampler.
+Use the Gibbs sampling data augmentation algorithm in NormalMixtureGibbs.R (available under Lecture 7 on the course page) to analyze the daily precipitation data. Set the prior hyperparameters suitably. Evaluate the convergence of the sampler.
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 x <- as.matrix(data1[,1])
@@ -224,9 +224,20 @@ for (k in 1:nIter){
   }
   
 }
+cum_mu1b = cumsum(storage_mu$mu1)
+cum_mu2b = cumsum(storage_mu$mu2)
+cum_sigmasq1b = cumsum(storage_sigmasq$sigmasq1)
+cum_sigmasq2b = cumsum(storage_sigmasq$sigmasq2)
 
-ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))
-ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="sigmasq1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="sigmasq2"))
+for (i in 1:length(cum_mu1b)){
+  cum_mu1b[i] = cum_mu1b[i]/i
+  cum_mu2b[i] = cum_mu2b[i]/i
+  cum_sigmasq1b[i] = cum_sigmasq1b[i]/i
+  cum_sigmasq2b[i] = cum_sigmasq2b[i]/i
+}
+
+ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))+geom_line(aes(x = seq(1:nIter), y = cum_mu1b, colour = "Cummulative Est. mu1")) + geom_line(aes(x = seq(1:nIter), y = cum_mu2b, colour = "Cummulative Est. mu2"))
+ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="sigmasq1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="sigmasq2"))+geom_line(aes(x = seq(1:nIter), y = cum_sigmasq1b, colour = "Cummulative Est. sigmasq1")) + geom_line(aes(x = seq(1:nIter), y = cum_sigmasq2b, colour = "Cummulative Est. sigmasq2"))
 ```
 
 (c) Graphical comparison.
@@ -242,6 +253,7 @@ legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density", "
 ```
 
 2. Metropolis Random Walk for Poisson regression. 
+
  Consider the following Poisson regression model
 $$y_i|\beta \sim Poisson[exp(X_i^T\beta)],i=1,\cdots,n$$
 
@@ -268,6 +280,9 @@ glm_mod=glm(nBids~.,data=data1,family=poisson())
 # or it is possible to code above as:
 # glm_mod = glm(nBids~0+., data = data, family = "poisson")
 glm_mod$coefficients
+summary(glm_mod)
+cat("Significant covariants are: ")
+cat("Constant(intercept), VerifyID, Sealed, MajBlem, LogBook, MinBidShare", "\n")
 ```
 
 
@@ -308,8 +323,8 @@ starting_value=rep(0,p)
 op=optim(starting_value,log_posterior,gr=NULL,response,covariates,method=c("BFGS"),control=list(fnscale=-1),hessian=TRUE)
 posterior_mode=op$par
 posterior_cov=-solve(op$hessian)
-cat("\n Posterior Mode:",posterior_mode)
-cat("\n Posterior Mode:\n")
+cat("\n Posterior Mode of betas:",posterior_mode)
+cat("\n Posterior Covariance:\n")
 kable(posterior_cov)
 ```
 
@@ -360,6 +375,56 @@ coef_result=colMeans(theta_samples)
 colnames=names(data[,-1])
 for(i in 1:length(colnames)){
   plot(theta_samples[,i],main=colnames[i],ylab="Value")
+}
+```
+
+```{r}
+
+mu0 = rep(0, times = p)
+sigma0 = 100*solve(t(covariates)%*%covariates)
+
+log_post = function(betas, x, y) {
+  
+  log_likelihood=rep(0,length(y))
+  for(i in 1:length(y)){
+    log_likelihood[i]=y[i]*betas%*%x[i,]-exp(betas%*%x[i,])-log(factorial(y[i]))
+  }
+  
+  
+  logprior = dmvnorm(betas, mean = as.matrix(mu0), sigma0, log=TRUE)
+  # since it is log posterior, it is proportional to sum of loglikli&logprior
+  # since optim function looks for minimum, minus posterior dist should be used
+  return(sum(log_likelihood)+logprior)
+}
+
+RMW_sample = function(prev_betas, tuning, sigma, logposterior, ...) {
+  proposal = rmvnorm(1, mean = prev_betas, sigma = tuning*sigma)
+  alpha = min(1, logposterior(proposal, ...)/logposterior(prev_betas, ...))
+  u = runif(1)
+  if (u < alpha) {return(proposal)}
+  else {return(prev_betas)}
+}
+
+RMW_result = matrix(NA, nrow = 10000, ncol=p)
+for (i in 1:10000){
+  RMW_result[i,] = RMW_sample(posterior_mode, tuning = 1.3, sigma = posterior_cov, logposterior = log_post, covariates, response)
+}
+
+```
+
+
+```{r}
+par(mfrow = c(1,2))
+for (i in 1:p){
+  title = paste("Histogram of simulated beta", i)
+  xlabel = paste("values of beta", i)
+  hist(RMW_result[,i], main=title, xlab = xlabel, breaks=50, freq = F)
+  cum_beta = cumsum(RMW_result[,i])
+  for (j in 1:10000){
+    cum_beta[j] = cum_beta[j] / j
+  }
+  title2 = paste("Traceplot of beta", i)
+  plot(cum_beta, main = title2, xlab = "MCMC Iteration", ylab="Cummulative Estimate")
 }
 ```
 
