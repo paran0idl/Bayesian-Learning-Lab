@@ -119,7 +119,7 @@ nIter <- 500 # Number of Gibbs sampling draws
 # Plotting options
 plotFit <- TRUE
 lineColors <- c("blue", "green")
-sleepTime <- 0.1 # Adding sleep time between iterations for plotting
+sleepTime <- 0 # Adding sleep time between iterations for plotting
 ################   END USER INPUT ###############
 
 ###### Defining a function that simulates from the 
@@ -226,10 +226,11 @@ for (k in 1:nIter){
 }
 
 ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))
-ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="mu2"))
+ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="sigmasq1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="sigmasq2"))
 ```
+
 (c) Graphical comparison.
-Plot the following densities in one figure: 1) a histogram or kernel density estimate of the data. 2) Normal density $N(y_i|\mu,\sigma^2)$ in (a); 3) Mixture of normals density. $p(y_i|\mu,\sigma^2,\pi)$ in (b). Base your plots on the mean over all posterior draws.
+ Plot the following densities in one figure: 1) a histogram or kernel density estimate of the data. 2) Normal density $N(y_i|\mu,\sigma^2)$ in (a); 3) Mixture of normals density. $p(y_i|\mu,\sigma^2,\pi)$ in (b). Base your plots on the mean over all posterior draws.
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 mu_normal=mean(simulation_result$mu)
@@ -237,13 +238,14 @@ sigma_normal=mean(simulation_result$sigmasq)
 hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted mixture density")
 lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 1, col = "red")
 lines(xGrid, dnorm(xGrid, mean = mu_normal, sd = sqrt(sigma_normal)), type = "l", lwd = 2, col = "blue")
-legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density"), col=c("black","red"), lwd = 2)
+legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density", "Normal density"), col=c("black","red", "blue"), lwd = 2)
 ```
+
 2. Metropolis Random Walk for Poisson regression. 
-Consider the following Poisson regression model
+ Consider the following Poisson regression model
 $$y_i|\beta \sim Poisson[exp(X_i^T\beta)],i=1,\cdots,n$$
 
-where $y_i$ is the count for the ith observation in the sample and xi is the p-dimensional vector with covariate observations for the ith observation. Use the data set eBayNumberOfBidderData.dat. This dataset contains observations from 1000 eBay auctions of coins. The response variable is nBids and records the number of bids in each auction. The remaining variables are features/covariates (x):
+ where $y_i$ is the count for the ith observation in the sample and xi is the p-dimensional vector with covariate observations for the ith observation. Use the data set eBayNumberOfBidderData.dat. This dataset contains observations from 1000 eBay auctions of coins. The response variable is nBids and records the number of bids in each auction. The remaining variables are features/covariates (x):
 
 
 • Const (for the intercept)
@@ -258,11 +260,13 @@ where $y_i$ is the count for the ith observation in the sample and xi is the p-d
 
 (a) Obtain the maximum likelihood estimator of $\beta$ in the Poisson regression model for the eBay data [Hint: glm.R, don’t forget that glm() adds its own intercept so don’t input the covariate Const]. Which covariates are significant?
 
-```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 rm(list = ls())
 data=read.table("eBayNumberOfBidderData.dat",header = TRUE)
 data1=data[,-2]
 glm_mod=glm(nBids~.,data=data1,family=poisson())
+# or it is possible to code above as:
+# glm_mod = glm(nBids~0+., data = data, family = "poisson")
 glm_mod$coefficients
 ```
 
@@ -271,7 +275,7 @@ glm_mod$coefficients
 $$\beta|y \sim N(\tilde{\beta},J^{-1}_y(\tilde{\beta}))$$
 where $\tilde{\beta}$ is the posterior mode and $J_y(\tilde{\beta})$ is the negative Hessian at the posterior mode. $\tilde{\beta}$ and $J_y(\tilde{\beta})$ can be obtained by numerical optimization (optim.R) exactly like you already did for the logistic regression in Lab 2 (but with the log posterior function replaced by the corresponding one for the Poisson model, which you have to code up.).
 
-```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 response=data[,1]
 covariates=data[,-1]
 covariates=as.matrix(covariates)
@@ -314,9 +318,9 @@ kable(posterior_cov)
 $$\theta_p|\theta^{(i-1)} \sim N(\theta^{(i-1)},c\Sigma)$$
 where $\sigma=J^{-1}_y(\tilde{\beta})$ obtained in b). The value c is a tuning parameter and should be an input to your Metropolis function. The user of your Metropo- lis function should be able to supply her own posterior density function, not necessarily for the Poisson regression, and still be able to use your Metropolis function. This is not so straightforward, unless you have come across function objects in R and the triple dot (...) wildcard argument. I have posted a note (HowToCodeRWM.pdf) on the course web page that describes how to do this in R.
 
-Now, use your new Metropolis function to sample from the posterior of $\beta$ in the Poisson regression for the eBay dataset. Assess MCMC convergence by graphical methods.
+ Now, use your new Metropolis function to sample from the posterior of $\beta$ in the Poisson regression for the eBay dataset. Assess MCMC convergence by graphical methods.
 
-```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 log_posterior=function(y,x,theta_p,previous_theta,sigma,first=FALSE){
   if(first==TRUE){
     return(log_likehood_poisson(y,x,theta_p))
@@ -371,7 +375,7 @@ for(i in 1:length(colnames)){
 • LogBook = 1
 • MinBidShare = 0.5
 
-```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 new_bidder=matrix(c(1,1,1,1,0,0,0,1,0.5),nrow = 1)
 coef_result=as.matrix(coef_result)
 pred=vector(length=10000)
