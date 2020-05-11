@@ -1,0 +1,392 @@
+---
+title:  |
+        | Computer Lab 3
+        | 732A54 - Bayesian Learning
+
+author: | 
+        | Jooyoung Lee - ```joole336```
+        | Zuxiang Li - ```zuxli371```
+        
+date : \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed("12345")
+library(mvtnorm)
+library(ggplot2)
+library(extraDistr)
+library(knitr)
+```
+
+### 1. Normal model, mixture of normal model with semi-conjugate prior.
+
+The data rainfall.dat consist of daily records, from the beginning of 1948 to the
+end of 1983, of precipitation (rain or snow in units of $\frac{1}{100}$ inch, and records of zero precipitation are excluded) at Snoqualmie Falls, Washington. Analyze the data using the following two models.
+
+(a) Normal model.
+Assume the daily precipitation$\{y_1,\cdots ,y_n\}$ are independent normally distributed, $y_1, \cdots, y_n|\mu,\sigma^2~N(\mu,\sigma^2)$ where both $\mu$ and $\sigma^2$ are unknown. Let $\mu~N(\mu_0,\tau^2)$ independently of $\sigma^2 \sim Inv-\chi^2(v_0,\sigma^2)$
+
+i. Implement (code!) a Gibbs sampler that simulates from the joint posterior $p(\mu,\sigma^2|y_1,\dots,y_n)$ The full conditional posteriors are given on the slides from Lecture 7.
+
+ii. Analyze the daily precipitation using your Gibbs sampler in (a)-i. Evaluate the convergence of the Gibbs sampler by suitable graphical methods, for example by plotting the trajectories of the sampled Markov chains.
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+data1 = read.table("rainfall.dat", header = FALSE)
+#1-1. Normal Model
+
+## defining function for simulation of mu and sigmasq
+library(extraDistr)
+joint_simulation = function(data, niteration){
+  
+  
+  ### initial nu is set to be 1. tau value is from the data.
+  ### when scale parameter is fixed, the tail of the distribution is heavier
+  ### as the degrees of freedom(nu) is smaller. Since the true sigmasq is 
+  ### unknown, distribution with heavy tail is used to represent its uncertainty
+  sigmasq = rinvchisq(1, nu=1, tau= var(data[,1]))
+  init_mu = mean(data[,1])
+  init_sigmasq = var(data[,1])
+  
+  n = dim(data)[1]
+
+  result_store = data.frame(mu=init_mu, sigmasq = init_sigmasq)
+  
+    
+  for (i in 1:niteration){
+    w = (n/sigmasq) / ( (n/sigmasq) + (1/init_sigmasq) )
+    tausq = 1 / ( (n/sigmasq) + (1/init_sigmasq) )
+    new_mu = rnorm(1, mean = (w*(mean(data[,1]))) + ((1-w)*init_mu), sd = sqrt(tausq) )
+    scaling = sum((data[,1] - new_mu)^2) / (n-1)
+    new_sigmasq = rinvchisq(1, nu = n-1, tau = scaling)
+    new = data.frame(mu = new_mu, sigmasq = new_sigmasq)
+    result_store = rbind(result_store, new)
+    init_mu = new_mu
+    init_sigmasq = result_store$sigmasq[i]
+    
+  }
+  
+  return(result_store)
+}
+
+### simulation and plotting
+set.seed(12345)
+simulation_result = joint_simulation(data = data1, niteration = 1000)
+### raw data plotting
+plot(simulation_result$mu)
+hist(simulation_result$mu,breaks = 100)
+plot(simulation_result$sigmasq)
+hist(simulation_result$sigmasq, breaks = 100)
+cum_mu = cumsum(simulation_result$mu)
+for (i in 1:length(cum_mu)){
+  cum_mu[i] = cum_mu[i]/i
+}
+plot(cum_mu, main= "Trace plot of MCMC iteration of mu", xlab="MCMC iteration", ylab="Cummulative Estimate")
+
+cum_sigmasq = cumsum(simulation_result$sigmasq)
+for (i in 1:length(cum_sigmasq)) {
+  cum_sigmasq[i] = cum_sigmasq[i]/i
+}
+plot(cum_sigmasq, main= "Trace plot of MCMC iteration of sigma^2", xlab="MCMC iteration", ylab="Cummulative Estimate")
+```
+
+
+(b) Mixture normal model.
+Let us now instead assume that the daily precipitation $\{y_1, .., y_n\}$ follow an iid two-component mixture of normals model:
+
+$$p(y_i|\mu,\sigma^2,\pi)=\pi N(y_i|\mu_1,\sigma^2_1)+(1-\pi)N(y_i|\mu_2,\sigma^2_2)$$,
+where
+$$\mu=(\mu_1,\mu_2) \ and\ \sigma^2=(\sigma^2_1,\sigma^2_2)$$
+Use the Gibbs sampling data augmentation algorithm in NormalMixtureGibbs.R (available under Lecture 7 on the course page) to analyze the daily precipita- tion data. Set the prior hyperparameters suitably. Evaluate the convergence of the sampler.
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+x <- as.matrix(data1[,1])
+
+# Model options
+nComp <- 2    # Number of mixture components
+
+# Prior options
+alpha <- 10*rep(1,nComp) # Dirichlet(alpha)
+muPrior <- c(20, 160) # Prior mean of mu by seeing the histogram of the data
+tau2Prior <- rep(10,nComp) # Prior std of mu
+sigma2_0 <- rep(var(x),nComp) # s20 (best guess of sigma2)
+nu0 <- rep(3,nComp) # degrees of freedom for prior on sigma2, set it as small value to make prior distribution of sigmasq vague
+
+# MCMC options
+nIter <- 500 # Number of Gibbs sampling draws
+
+# Plotting options
+plotFit <- TRUE
+lineColors <- c("blue", "green")
+sleepTime <- 0.1 # Adding sleep time between iterations for plotting
+################   END USER INPUT ###############
+
+###### Defining a function that simulates from the 
+rScaledInvChi2 <- function(n, df, scale){
+  return((df*scale)/rchisq(n,df=df))
+}
+
+####### Defining a function that simulates from a Dirichlet distribution
+rDirichlet <- function(param){
+  nCat <- length(param)
+  piDraws <- matrix(NA,nCat,1)
+  for (j in 1:nCat){
+    piDraws[j] <- rgamma(1,param[j],1)
+  }
+  piDraws = piDraws/sum(piDraws) # Diving every column of piDraws by the sum of the elements in that column.
+  return(piDraws)
+}
+
+# Simple function that converts between two different representations of the mixture allocation
+S2alloc <- function(S){
+  n <- dim(S)[1]
+  alloc <- rep(0,n)
+  for (i in 1:n){
+    alloc[i] <- which(S[i,] == 1)
+  }
+  return(alloc)
+}
+
+# Initial value for the MCMC
+nObs <- length(x)
+S <- t(rmultinom(nObs, size = 1 , prob = rep(1/nComp,nComp))) # nObs-by-nComp matrix with component allocations.
+mu <- quantile(x, probs = seq(0,1,length = nComp))
+sigma2 <- rep(var(x),nComp)
+probObsInComp <- rep(NA, nComp)
+
+# Setting up the plot
+xGrid <- seq(min(x)-1*apply(x,2,sd),max(x)+1*apply(x,2,sd),length = 100)
+xGridMin <- min(xGrid)
+xGridMax <- max(xGrid)
+mixDensMean <- rep(0,length(xGrid))
+effIterCount <- 0
+ylim <- c(0,2*max(hist(x)$density))
+
+storage_mu = data.frame(mu1 = as.numeric(), mu2 = as.numeric(),stringsAsFactors = FALSE)
+storage_sigmasq = data.frame( sigmasq1 = as.numeric(), sigmasq2 = as.numeric(), stringsAsFactors = FALSE)
+
+for (k in 1:nIter){
+  #message(paste('Iteration number:',k))
+  alloc <- S2alloc(S) # Just a function that converts between different representations of the group allocations
+  nAlloc <- colSums(S)
+  #print(nAlloc)
+  # Update components probabilities
+  pi <- rDirichlet(alpha + nAlloc)
+  
+  # Update mu's
+  for (j in 1:nComp){
+    precPrior <- 1/tau2Prior[j]
+    precData <- nAlloc[j]/sigma2[j]
+    precPost <- precPrior + precData
+    wPrior <- precPrior/precPost
+    muPost <- wPrior*muPrior + (1-wPrior)*mean(x[alloc == j])
+    tau2Post <- 1/precPost
+    mu[j] <- rnorm(1, mean = muPost, sd = sqrt(tau2Post))
+  }
+  new_mu = data.frame(mu1 = mu[1], mu2 = mu[2])
+  storage_mu = rbind(storage_mu, new_mu)
+  
+  # Update sigma2's
+  for (j in 1:nComp){
+    sigma2[j] <- rScaledInvChi2(1, df = nu0[j] + nAlloc[j], scale = (nu0[j]*sigma2_0[j] + sum((x[alloc == j] - mu[j])^2))/(nu0[j] + nAlloc[j]))
+  }
+  new_sigma2 = data.frame(sigmasq1 = sigma2[1], sigmasq2 = sigma2[2])
+  storage_sigmasq = rbind(storage_sigmasq, new_sigma2)
+  
+  
+  # Update allocation
+  for (i in 1:nObs){
+    for (j in 1:nComp){
+      probObsInComp[j] <- pi[j]*dnorm(x[i], mean = mu[j], sd = sqrt(sigma2[j]))
+    }
+    S[i,] <- t(rmultinom(1, size = 1 , prob = probObsInComp/sum(probObsInComp)))
+  }
+  
+  # Printing the fitted density against data histogram
+  if (plotFit && (k%%1 ==0)){
+    effIterCount <- effIterCount + 1
+    #hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = paste("Iteration number",k), ylim = ylim)
+    mixDens <- rep(0,length(xGrid))
+    components <- c()
+    for (j in 1:nComp){
+      compDens <- dnorm(xGrid,mu[j],sd = sqrt(sigma2[j]))
+      mixDens <- mixDens + pi[j]*compDens
+      #lines(xGrid, compDens, type = "l", lwd = 2, col = lineColors[j])
+      components[j] <- paste("Component ",j)
+    }
+    mixDensMean <- ((effIterCount-1)*mixDensMean + mixDens)/effIterCount
+    
+    #lines(xGrid, mixDens, type = "l", lty = 2, lwd = 3, col = 'red')
+    #legend("topleft", box.lty = 1, legend = c("Data histogram",components, 'Mixture'), 
+     #      col = c("black",lineColors[1:nComp], 'red'), lwd = 2)
+    Sys.sleep(sleepTime)
+  }
+  
+}
+
+ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))
+ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="mu2"))
+```
+(c) Graphical comparison.
+Plot the following densities in one figure: 1) a histogram or kernel density estimate of the data. 2) Normal density $N(y_i|\mu,\sigma^2)$ in (a); 3) Mixture of normals density. $p(y_i|\mu,\sigma^2,\pi)$ in (b). Base your plots on the mean over all posterior draws.
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+mu_normal=mean(simulation_result$mu)
+sigma_normal=mean(simulation_result$sigmasq)
+hist(x, breaks = 20, freq = FALSE, xlim = c(xGridMin,xGridMax), main = "Final fitted mixture density")
+lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 1, col = "red")
+lines(xGrid, dnorm(xGrid, mean = mu_normal, sd = sqrt(sigma_normal)), type = "l", lwd = 2, col = "blue")
+legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density"), col=c("black","red"), lwd = 2)
+```
+2. Metropolis Random Walk for Poisson regression. 
+Consider the following Poisson regression model
+$$y_i|\beta \sim Poisson[exp(X_i^T\beta)],i=1,\cdots,n$$
+
+where $y_i$ is the count for the ith observation in the sample and xi is the p-dimensional vector with covariate observations for the ith observation. Use the data set eBayNumberOfBidderData.dat. This dataset contains observations from 1000 eBay auctions of coins. The response variable is nBids and records the number of bids in each auction. The remaining variables are features/covariates (x):
+
+
+• Const (for the intercept)
+• PowerSeller (is the seller selling large volumes on eBay?)
+• VerifyID (is the seller verified by eBay?)
+• Sealed (was the coin sold sealed in never opened envelope?)
+• MinBlem (did the coin have a minor defect?)
+• MajBlem (a major defect?)
+• LargNeg (did the seller get a lot of negative feedback from customers?)
+• LogBook (logarithm of the coins book value according to expert sellers. Stan- dardized)
+• MinBidShare (a variable that measures ratio of the minimum selling price (starting price) to the book value. Standardized).
+
+(a) Obtain the maximum likelihood estimator of $\beta$ in the Poisson regression model for the eBay data [Hint: glm.R, don’t forget that glm() adds its own intercept so don’t input the covariate Const]. Which covariates are significant?
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+rm(list = ls())
+data=read.table("eBayNumberOfBidderData.dat",header = TRUE)
+data1=data[,-2]
+glm_mod=glm(nBids~.,data=data1,family=poisson())
+glm_mod$coefficients
+```
+
+
+(b) Let’s now do a Bayesian analysis of the Poisson regression. Let the prior be $\beta \sim N[0,100 \cdot (X^TX)^{-1}]$ where X is the n x p covariate matrix. This is a commonly used prior which is called Zellner’s g-prior. Assume first that the posterior density is approximately multivariate normal:
+$$\beta|y \sim N(\tilde{\beta},J^{-1}_y(\tilde{\beta}))$$
+where $\tilde{\beta}$ is the posterior mode and $J_y(\tilde{\beta})$ is the negative Hessian at the posterior mode. $\tilde{\beta}$ and $J_y(\tilde{\beta})$ can be obtained by numerical optimization (optim.R) exactly like you already did for the logistic regression in Lab 2 (but with the log posterior function replaced by the corresponding one for the Poisson model, which you have to code up.).
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+response=data[,1]
+covariates=data[,-1]
+covariates=as.matrix(covariates)
+response=as.matrix(response)
+p=dim(covariates)[2]
+n=dim(covariates)[1]
+
+log_likehood_poisson=function(y,x,betas){
+  log_likelihood=vector(length = n)
+  for(i in 1:n){
+    log_likelihood[i]=y[i]*betas%*%x[i,]-exp(betas%*%x[i,])-log(factorial(y[i]))
+  }
+  return(sum(log_likelihood))
+}
+
+log_prior_likelihood=function(betas){
+  mu=rep(0,p)
+  sigma_sq=100*solve(t(covariates)%*%covariates)
+  log_likelihood=(log(det(sigma_sq))+t(betas-mu)%*%solve(sigma_sq)%*%(betas-mu)+p*log(2*pi))*0.5
+  return(log_likelihood)
+}
+
+# for log posterior= log prior +log likelihood
+log_posterior=function(betas,y,x){
+  #return(log_likelihood_probit(y,x,betas)+log_prior_likelihood(tau,betas))
+  return(log_likehood_poisson(y,x,betas)+log_prior_likelihood(betas))
+}
+
+starting_value=rep(0,p)
+op=optim(starting_value,log_posterior,gr=NULL,response,covariates,method=c("BFGS"),control=list(fnscale=-1),hessian=TRUE)
+posterior_mode=op$par
+posterior_cov=-solve(op$hessian)
+cat("\n Posterior Mode:",posterior_mode)
+cat("\n Posterior Mode:\n")
+kable(posterior_cov)
+```
+
+
+(c) Now, let’s simulate from the actual posterior of $\beta$ using the Metropolis algo- rithm and compare with the approximate results in b). Program a general function that uses the Metropolis algorithm to generate random draws from an arbitrary posterior density. In order to show that it is a general function for any model, I will denote the vector of model parameters by $\theta$. Let the proposal density be the multivariate normal density mentioned in Lecture 8 (random walk Metropolis).
+$$\theta_p|\theta^{(i-1)} \sim N(\theta^{(i-1)},c\Sigma)$$
+where $\sigma=J^{-1}_y(\tilde{\beta})$ obtained in b). The value c is a tuning parameter and should be an input to your Metropolis function. The user of your Metropo- lis function should be able to supply her own posterior density function, not necessarily for the Poisson regression, and still be able to use your Metropolis function. This is not so straightforward, unless you have come across function objects in R and the triple dot (...) wildcard argument. I have posted a note (HowToCodeRWM.pdf) on the course web page that describes how to do this in R.
+
+Now, use your new Metropolis function to sample from the posterior of $\beta$ in the Poisson regression for the eBay dataset. Assess MCMC convergence by graphical methods.
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+log_posterior=function(y,x,theta_p,previous_theta,sigma,first=FALSE){
+  if(first==TRUE){
+    return(log_likehood_poisson(y,x,theta_p))
+  }else{
+    return(log_likehood_poisson(y,x,theta_p)+dmvnorm(theta_p,mean=previous_theta,sigma=posterior_cov,log = TRUE))
+  }
+}
+# RWM algorithm
+RWMSampler=function(c,y,x,maxit,log_posterior,...){
+  theta_series=matrix(nrow = maxit,ncol=p)
+  theta_series[1,]=rep(0,p)
+  theta_logs=vector(length = maxit)
+  theta_logs[1]=log_posterior(y,x,theta_series[1,],first = TRUE)
+  for(i in 2:maxit){
+    u=runif(1)
+    # sample from proposal
+    theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=c*posterior_cov)
+
+    current_log_d=log_posterior(y=y,x=x,theta_p=theta_p,previous_theta=theta_series[i-1,],sigma=c*posterior_cov)
+
+    alpha=min(1,exp(current_log_d-theta_logs[i-1]))
+    if(u<alpha){
+      theta_series[i,]=theta_p
+      theta_logs[i]=current_log_d
+      
+    }else{
+      theta_series[i,]=theta_series[i-1,]
+      theta_logs[i]=theta_logs[i-1]
+    }
+  }
+  return(list(theta_series=theta_series,theta_logs=theta_logs))
+  
+}
+result=RWMSampler(1.3,response,covariates,maxit=10000,log_posterior)
+theta_samples=result$theta_series
+coef_result=colMeans(theta_samples)
+colnames=names(data[,-1])
+for(i in 1:length(colnames)){
+  plot(theta_samples[,i],main=colnames[i],ylab="Value")
+}
+```
+
+(d) Use the MCMC draws from c) to simulate from the predictive distribution of the number of bidders in a new auction with the characteristics below. Plot the predictive distribution. What is the probability of no bidders in this new auction?
+
+
+• PowerSeller = 1
+• VerifyID = 1
+• Sealed = 1
+• MinBlem = 0
+• MajBlem = 0
+• LargNeg = 0
+• LogBook = 1
+• MinBidShare = 0.5
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+new_bidder=matrix(c(1,1,1,1,0,0,0,1,0.5),nrow = 1)
+coef_result=as.matrix(coef_result)
+pred=vector(length=10000)
+for(i in 1:10000){
+  pred[i]=rpois(1,exp(new_bidder%*%coef_result))
+}
+hist(pred)
+```
+\newpage
+
+# Appendix A : Code Question 1
+```{r, ref.label=knitr::all_labels(q1==TRUE),echo=TRUE,eval=FALSE}
+```
+
+\newpage
+# Appendix B : Code Question 2
+```{r, ref.label=knitr::all_labels(q2==TRUE),echo=TRUE,eval=FALSE}
+```

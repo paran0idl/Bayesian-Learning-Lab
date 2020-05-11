@@ -233,44 +233,75 @@ log_likehood_poisson=function(y,x,betas){
   return(sum(log_likelihood))
 }
 
-
+log_posterior=function(y,x,theta_p,previous_theta,sigma,first=FALSE){
+  if(first==TRUE){
+    return(log_likehood_poisson(y,x,theta_p))
+  }else{
+    return(log_likehood_poisson(y,x,theta_p)+dmvnorm(theta_p,mean=previous_theta,sigma=posterior_cov,log = TRUE))
+  }
+}
 # RWM algorithm
-
-# init
-RWMSampler=function(x,y,maxit){
+RWMSampler=function(c,y,x,maxit,log_posterior,...){
   theta_series=matrix(nrow = maxit,ncol=p)
   theta_series[1,]=rep(0,p)
   theta_logs=vector(length = maxit)
-  theta_logs[1]=log_likehood_poisson(y,x,theta_series[1,])+1
+  theta_logs[1]=log_posterior(y,x,theta_series[1,],first = TRUE)
   for(i in 2:maxit){
-    print(i)
     u=runif(1)
     # sample from proposal
-    theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=posterior_cov)
-    #print("theta_p")
-    log_llik=log_likehood_poisson1(y,x,theta_p)
-    #print("log_llik")
-    log_pr=dmvnorm(theta_p,mean=theta_series[i-1,],sigma=posterior_cov,log = TRUE)
-    #print("logpr")
-    current_log_d=log_llik+log_pr
+    theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=c*posterior_cov)
+
+    current_log_d=log_posterior(y=y,x=x,theta_p=theta_p,previous_theta=theta_series[i-1,],sigma=c*posterior_cov)
+
     alpha=min(1,exp(current_log_d-theta_logs[i-1]))
     if(u<alpha){
       theta_series[i,]=theta_p
       theta_logs[i]=current_log_d
-
+      
     }else{
       theta_series[i,]=theta_series[i-1,]
       theta_logs[i]=theta_logs[i-1]
     }
   }
   return(list(theta_series=theta_series,theta_logs=theta_logs))
+  
 }
-
-ddd=RWMSampler(x=covariates,y=response,maxit = 10000)
+ddd=RWMSampler(1.3,response,covariates,maxit=10000,log_posterior)
 tmp=ddd$theta_series
 plot(ddd$theta_series[,9])
 ddd$theta_series[10000,]
 colMeans(tmp)
+# # init
+# RWMSampler=function(x,y,maxit){
+#   theta_series=matrix(nrow = maxit,ncol=p)
+#   theta_series[1,]=rep(0,p)
+#   theta_logs=vector(length = maxit)
+#   theta_logs[1]=log_likehood_poisson(y,x,theta_series[1,])+1
+#   for(i in 2:maxit){
+#     print(i)
+#     u=runif(1)
+#     # sample from proposal
+#     theta_p=rmvnorm(1,mean=theta_series[i-1,],sigma=posterior_cov)
+#     #print("theta_p")
+#     log_llik=log_likehood_poisson1(y,x,theta_p)
+#     #print("log_llik")
+#     log_pr=dmvnorm(theta_p,mean=theta_series[i-1,],sigma=posterior_cov,log = TRUE)
+#     #print("logpr")
+#     current_log_d=log_llik+log_pr
+#     alpha=min(1,exp(current_log_d-theta_logs[i-1]))
+#     if(u<alpha){
+#       theta_series[i,]=theta_p
+#       theta_logs[i]=current_log_d
+# 
+#     }else{
+#       theta_series[i,]=theta_series[i-1,]
+#       theta_logs[i]=theta_logs[i-1]
+#     }
+#   }
+#   return(list(theta_series=theta_series,theta_logs=theta_logs))
+# }
+
+
 
 
 new_bidder=matrix(c(1,1,1,1,0,0,0,1,0.5),nrow = 1)
