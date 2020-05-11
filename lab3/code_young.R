@@ -242,7 +242,7 @@ legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density","N
 # Question2
 ## importing data & set variables
 #data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab3/eBayNumberOfBidderData.dat", header=TRUE)
-data2 = read.table("lab3/eBayNumberOfBidderData.dat", header=TRUE)
+data2 = read.table("~/Bayesian Learning/Bayesian-Learning-Lab/lab3/eBayNumberOfBidderData.dat", header=TRUE)
 Y = as.matrix(data2$nBids)
 X = as.matrix(data2[,-1])
 
@@ -272,7 +272,7 @@ mu0 = rep(0, times = n_param)
 sigma0 = 100*solve(t(X)%*%X)
 
 ### defining log_posterior functions used to find the mode of the distributions
-minuslog_post = function(betas, x, y) {
+log_post = function(betas, x, y) {
   
   log_likelihood=rep(0,length(y))
   for(i in 1:length(y)){
@@ -283,15 +283,15 @@ minuslog_post = function(betas, x, y) {
   logprior = dmvnorm(betas, mean = as.matrix(mu0), sigma0, log=TRUE)
   # since it is log posterior, it is proportional to sum of loglikli&logprior
   # since optim function looks for minimum, minus posterior dist should be used
-  return(-sum(log_likelihood)-logprior)
+  return(sum(log_likelihood)+logprior)
 }
 
 ### objective is to find posterior distribution of betas.
 ### since the objective is to find the maximum, set fn as minus posterior
 initials = rep(0, n_param)
-optimum_result = optim(initials, minuslog_post, X, Y, gr = NULL, method = "BFGS", hessian = TRUE)
+optimum_result = optim(initials, log_post, X, Y, gr = NULL, method = "BFGS", control=list(fnscale=-1), hessian = TRUE)
 
-post_betas_mode = optimum_result$par  ### these turn out to be 0s... 
+post_betas_mode = optimum_result$par
 post_cov = -solve(optimum_result$hessian)
 names(post_betas_mode) = covariates
 colnames(post_cov) = covariates
@@ -302,13 +302,15 @@ rownames(post_cov) = covariates
 library(mvtnorm)
 RMW_sample = function(prev_betas, tuning, sigma, logposterior, ...) {
   proposal = rmvnorm(1, mean = prev_betas, sigma = tuning*sigma)
-  alpha = min(1, logposterior(proposal, x, y)/logposterior(prev_betas, x, y))
+  alpha = min(1, logposterior(proposal, ...)/logposterior(prev_betas, ...))
   u = runif(1)
   if (u < alpha) {return(proposal)}
   else {return(prev_betas)}
 }
 
-example = matrix(NA, nrow = 10, ncol=n_param)
-for (i in 1:10){
-  example[i,] = RMW_sample(post_betas_mode, tuning = 1, sigma = post_cov, logposterior = minuslog_post, X, Y)
-}
+### example = matrix(NA, nrow = 10, ncol=n_param)
+###for (i in 1:10){
+###  example[i,] = RMW_sample(post_betas_mode, tuning = 1, sigma = post_cov, logposterior = log_post, X, Y)
+### }
+##### example works!! the only thing to do here is now to set the number of MCMC iterations
+
