@@ -74,9 +74,9 @@ joint_simulation = function(data, niteration){
 set.seed(12345)
 simulation_result = joint_simulation(data = data1, niteration = 1000)
 ### raw data plotting
-plot(simulation_result$mu)
-hist(simulation_result$mu,breaks = 100)
-plot(simulation_result$sigmasq)
+plot(simulation_result$mu,ylab = "Simulations for mus")
+hist(simulation_result$mu,breaks = 100,)
+plot(simulation_result$sigmasq,ylab = "Simulations for sigmasqs")
 hist(simulation_result$sigmasq, breaks = 100)
 cum_mu = cumsum(simulation_result$mu)
 for (i in 1:length(cum_mu)){
@@ -91,6 +91,7 @@ for (i in 1:length(cum_sigmasq)) {
 plot(cum_sigmasq, main= "Traceplot of MCMC iteration of sigma^2", xlab="MCMC iteration", ylab="Cummulative Estimate")
 ```
 
+We can observe from the traceplots for mus and sigmasqs that both of them converge to a certain value, which matches the expected mean and sigmas for our original data.
 
 (b) Mixture normal model.
 Let us now instead assume that the daily precipitation $\{y_1, .., y_n\}$ follow an iid two-component mixture of normals model:
@@ -236,9 +237,11 @@ for (i in 1:length(cum_mu1b)){
   cum_sigmasq2b[i] = cum_sigmasq2b[i]/i
 }
 
-ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))+geom_line(aes(x = seq(1:nIter), y = cum_mu1b, colour = "Cummulative Est. mu1")) + geom_line(aes(x = seq(1:nIter), y = cum_mu2b, colour = "Cummulative Est. mu2"))
-ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="sigmasq1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="sigmasq2"))+geom_line(aes(x = seq(1:nIter), y = cum_sigmasq1b, colour = "Cummulative Est. sigmasq1")) + geom_line(aes(x = seq(1:nIter), y = cum_sigmasq2b, colour = "Cummulative Est. sigmasq2"))
+ggplot(data=storage_mu)+geom_line(aes(x=seq(1:nIter),y=mu1,colour="mu1"))+geom_line(aes(x=seq(1:nIter),y=mu2,colour="mu2"))+geom_line(aes(x = seq(1:nIter), y = cum_mu1b, colour = "Cummulative Est. mu1")) + geom_line(aes(x = seq(1:nIter), y = cum_mu2b, colour = "Cummulative Est. mu2"))+xlab("Index")
+ggplot(data=storage_sigmasq)+geom_line(aes(x=seq(1:nIter),y=sigmasq1,colour="sigmasq1"))+geom_line(aes(x=seq(1:nIter),y=sigmasq2,colour="sigmasq2"))+geom_line(aes(x = seq(1:nIter), y = cum_sigmasq1b, colour = "Cummulative Est. sigmasq1")) + geom_line(aes(x = seq(1:nIter), y = cum_sigmasq2b, colour = "Cummulative Est. sigmasq2"))+xlab("Index")
 ```
+
+
 
 (c) Graphical comparison.
  Plot the following densities in one figure: 1) a histogram or kernel density estimate of the data. 2) Normal density $N(y_i|\mu,\sigma^2)$ in (a); 3) Mixture of normals density. $p(y_i|\mu,\sigma^2,\pi)$ in (b). Base your plots on the mean over all posterior draws.
@@ -251,6 +254,8 @@ lines(xGrid, mixDensMean, type = "l", lwd = 2, lty = 1, col = "red")
 lines(xGrid, dnorm(xGrid, mean = mu_normal, sd = sqrt(sigma_normal)), type = "l", lwd = 2, col = "blue")
 legend("topright", box.lty = 1, legend = c("Data histogram","Mixture density", "Normal density"), col=c("black","red", "blue"), lwd = 2)
 ```
+
+The mixture density performed much better than normal density in this case. Although the normal density follows the same trend as our data, it reflects our data with less flexibility. But the mixture model fits better, it reflects the turning point.
 
 2. Metropolis Random Walk for Poisson regression. 
 
@@ -285,6 +290,7 @@ cat("Significant covariants are: ")
 cat("Constant(intercept), VerifyID, Sealed, MajBlem, LogBook, MinBidShare", "\n")
 ```
 
+Sealed and MinBidShare have more weight than other covatiates.
 
 (b) Let’s now do a Bayesian analysis of the Poisson regression. Let the prior be $\beta \sim N[0,100 \cdot (X^TX)^{-1}]$ where X is the n x p covariate matrix. This is a commonly used prior which is called Zellner’s g-prior. Assume first that the posterior density is approximately multivariate normal:
 $$\beta|y \sim N(\tilde{\beta},J^{-1}_y(\tilde{\beta}))$$
@@ -378,7 +384,7 @@ for(i in 1:length(colnames)){
 }
 ```
 
-```{r}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 
 mu0 = rep(0, times = p)
 sigma0 = 100*solve(t(covariates)%*%covariates)
@@ -413,7 +419,7 @@ for (i in 1:10000){
 ```
 
 
-```{r}
+```{r,q2=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
 par(mfrow = c(1,2))
 for (i in 1:p){
   title = paste("Histogram of simulated beta", i)
@@ -427,6 +433,7 @@ for (i in 1:p){
   plot(cum_beta, main = title2, xlab = "MCMC Iteration", ylab="Cummulative Estimate")
 }
 ```
+
 
 (d) Use the MCMC draws from c) to simulate from the predictive distribution of the number of bidders in a new auction with the characteristics below. Plot the predictive distribution. What is the probability of no bidders in this new auction?
 
@@ -447,7 +454,9 @@ pred=vector(length=10000)
 for(i in 1:10000){
   pred[i]=rpois(1,exp(new_bidder%*%coef_result))
 }
-hist(pred)
+hist(pred,main = "Histogram of New Bidder Prediction")
+prob=length(which(pred==0))/10000
+cat("Hte probability of no bidder in this new auction is ",prob)
 ```
 \newpage
 
