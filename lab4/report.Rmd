@@ -1,0 +1,49 @@
+---
+title:  |
+        | Computer Lab 4
+        | 732A54 - Bayesian Learning
+
+author: | 
+        | Jooyoung Lee - ```joole336```
+        | Zuxiang Li - ```zuxli371```
+        
+date : \today
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed("12345")
+library(ggplot2)
+
+```
+
+### 1. Time series models in Stan
+
+(a) Write a function in R that simulates data from the AR(1)-process
+$$x_t=\mu+\phi(x_{t-1}-\mu)+\epsilon_t , \epsilon_t \sim N(0,\sigma^2)$$
+for given values of $\mu$,$\phi$  and $\sigma^2$. Start the process at $x_1=\mu$ and then simulate values for $x_t$ for $t=2,3,\cdots, T$ and return the vector $x_{1:T}$ containing all time points. Use $\mu=10$, $\sigma^2=2$ and $T=200$ and look at some different realizations
+(simulations) of $x_{1:T}$ for values of $\phi$ betweent -1 and 1 (this is the interval of $\phi$ where the AR(1)-process is stable). Include a plot of at least one realization in the report. What effect does the value of $\phi$ have on $x_{1:T}$
+
+(b) Use your function from a) to simulate two AR(1)-processes, $x_{1:T}$ with $\phi=0.3$ and $y_{1:T}$ with $\phi=0.95$. Now, treat your simulated vectors as synthetic data, and treat the values of $\mu$, $\phi$ and $\sigma^2$ as unknown and estimate them using MCMC. Implement Stan-code that samples from the posterior of the three parameters, using suitable non-informative priors of your choice. [Hint: Look at the time-series models examples in the Stan user’s guide/reference manual, and note the different parameterization used here.]
+
+i. Report the posterior mean, 95% credible intervals and the number of effective posterior samples for the three inferred parameters for each of the simulated AR(1)-process. Are you able to estimate the true values?
+
+ii. For each of the two data sets, evaluate the convergence of the samplers and plot the joint posterior of $\mu$ and $\phi$. Comments?
+
+(c) The data campy.dat contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is 
+$$c_t|x_t \sim Poisson(exp(x_t))$$
+where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t=exp(x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
+
+(d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
+
+\newpage
+
+# Appendix A : Code Question 1
+```{r, ref.label=knitr::all_labels(q1==TRUE),echo=TRUE,eval=FALSE}
+```
+
+\newpage
+# Appendix B : Code Question 2
+```{r, ref.label=knitr::all_labels(q2==TRUE),echo=TRUE,eval=FALSE}
+```
