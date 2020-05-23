@@ -13,9 +13,9 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-set.seed("12345")
 library(ggplot2)
-
+library(rstan)
+set.seed("12345")
 ```
 
 ### 1. Time series models in Stan
@@ -25,17 +25,171 @@ $$x_t=\mu+\phi(x_{t-1}-\mu)+\epsilon_t , \epsilon_t \sim N(0,\sigma^2)$$
 for given values of $\mu$,$\phi$  and $\sigma^2$. Start the process at $x_1=\mu$ and then simulate values for $x_t$ for $t=2,3,\cdots, T$ and return the vector $x_{1:T}$ containing all time points. Use $\mu=10$, $\sigma^2=2$ and $T=200$ and look at some different realizations
 (simulations) of $x_{1:T}$ for values of $\phi$ betweent -1 and 1 (this is the interval of $\phi$ where the AR(1)-process is stable). Include a plot of at least one realization in the report. What effect does the value of $\phi$ have on $x_{1:T}$
 
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+ar1_process=function(t,mu,phi,sigmasq){
+  res=vector(length=t)
+  res[1]=mu
+  for(i in 2:t){
+    res[i]=mu+phi*(res[i-1]-mu)+rnorm(1,0,sigmasq)
+  }
+  return(res)
+}
+mu=10
+sigmasq=2
+t=200
+
+tmp2=ar1_process(t,mu,-1,sigmasq)
+plot(x=seq(1,t),y=tmp2,type="l",xlab = "Time",ylab="Value",main = "phi=-1")
+tmp3=ar1_process(t,mu,-0.5,sigmasq)
+plot(x=seq(1,t),y=tmp3,type="l",xlab = "Time",ylab="Value",main = "phi=-0.5")
+tmp4=ar1_process(t,mu,0,sigmasq)
+plot(x=seq(1,t),y=tmp4,type="l",xlab = "Time",ylab="Value",main = "phi=0")
+tmp1=ar1_process(t,mu,0.5,sigmasq)
+plot(x=seq(1,t),y=tmp1,type="l",xlab = "Time",ylab="Value",main = "phi=0.5")
+tmp5=ar1_process(t,mu,1,sigmasq)
+plot(x=seq(1,t),y=tmp5,type="l",xlab = "Time",ylab="Value",main = "phi=1")
+```
+
+As $\phi$ increases, the value between two continuous observations become less irregular.
+
 (b) Use your function from a) to simulate two AR(1)-processes, $x_{1:T}$ with $\phi=0.3$ and $y_{1:T}$ with $\phi=0.95$. Now, treat your simulated vectors as synthetic data, and treat the values of $\mu$, $\phi$ and $\sigma^2$ as unknown and estimate them using MCMC. Implement Stan-code that samples from the posterior of the three parameters, using suitable non-informative priors of your choice. [Hint: Look at the time-series models examples in the Stan user’s guide/reference manual, and note the different parameterization used here.]
 
 i. Report the posterior mean, 95% credible intervals and the number of effective posterior samples for the three inferred parameters for each of the simulated AR(1)-process. Are you able to estimate the true values?
 
 ii. For each of the two data sets, evaluate the convergence of the samplers and plot the joint posterior of $\mu$ and $\phi$. Comments?
 
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+x1t=ar1_process(200,10,0.3,2)
+y1t=ar1_process(200,10,0.95,2)
+
+
+StanModel = '
+data {
+  int<lower=0> N;
+  vector[N] y;
+}
+parameters {
+  real mu;
+  real <lower=-1,upper=1>phi;
+  real<lower=0> sigma;
+}
+model {
+  mu~ normal(1,100);
+  phi~ normal(1,100);
+  sigma ~ scaled_inv_chi_square(1,2);
+  for (n in 2:N)
+    y[n] ~ normal(mu + phi * (y[n-1]-mu), sigma);
+}
+'
+
+data1 = list(N=length(x1t), y=x1t)
+data2 = list(N=length(y1t), y=y1t)
+burnin = 1000
+niter = 2000
+fit1 = stan(model_code=StanModel,data=data1, warmup=burnin,iter=niter,chains=4,refresh=0)
+fit2 = stan(model_code=StanModel,data=data2, warmup=burnin,iter=niter,chains=4,refresh=0)
+
+print(fit1,digits_summary=3)
+print(fit2,digits_summary=3)
+mu1<- extract(fit1, 'mu')$mu
+mu2<- extract(fit2, 'mu')$mu
+phi1 <- extract(fit1, 'phi')$phi
+phi2 <- extract(fit2, 'phi')$phi
+
+traceplot(fit1)
+traceplot(fit2)
+
+pairs(extract(fit1, c('mu','phi')))
+pairs(extract(fit2, c('mu','phi')))
+```
+
 (c) The data campy.dat contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is 
 $$c_t|x_t \sim Poisson(exp(x_t))$$
 where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in Stan, using suitable priors of your choice. Produce a plot that contains both the data and the posterior mean and 95% credible intervals for the latent intensity $\theta_t=exp(x_t)$ over time. [Hint: Should $x_t$ be seen as data or parameters?]
 
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+data=read.table("campy.dat",header = TRUE)
+data = list(N=length(data$c), ct=data$c)
+StanModel ='
+data {
+  int<lower=0> N;
+  int ct[N];
+}
+parameters {
+  real mu;
+  real <lower=-1,upper=1>phi;
+  real<lower=0> sigma;
+  real xt[N];
+}
+model {
+  mu~ normal(1,100);
+  phi~ normal(1,100);
+  sigma ~ scaled_inv_chi_square(100,2);
+  xt[1]~normal(mu,1);
+  ct[1]~poisson(exp(mu));
+  for (n in 2:N){
+    xt[n]~normal(mu + phi * (xt[n-1]-mu), sigma);
+    ct[n] ~ poisson(exp(xt[n]|));
+  }
+}
+'
+
+plot(data$ct,type="l")
+burnin = 1000
+niter = 2000
+fit1 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4,refresh=0)
+
+
+print(fit1,digits_summary=3)
+postDraws <- extract(fit1)
+
+res=colMeans(postDraws$xt)
+plot(exp(res),type="l")
+plot(rpois(140,exp(res)),type="l")
+##ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct,colour="original"))+geom_line(aes(x=c(1:data$N),y=exp(res),colour="Pred"))
+ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct))+geom_line(aes(x=c(1:data$N),y=rpois(140,exp(res))))
+```
 (d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
+
+```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
+data=read.table("campy.dat",header = TRUE)
+data = list(N=length(data$c), ct=data$c)
+StanModel ='
+data {
+  int<lower=0> N;
+  int ct[N];
+}
+parameters {
+  real mu;
+  real <lower=-1,upper=1>phi;
+  real<lower=0> sigma;
+  real xt[N];
+}
+model {
+  mu~ normal(1,100);
+  phi~ normal(1,100);
+  sigma ~ scaled_inv_chi_square(1,2);
+  xt[1]~normal(mu,1);
+  ct[1]~poisson(exp(mu));
+  for (n in 2:N){
+    xt[n]~normal(mu + phi * (xt[n-1]-mu), sigma);
+    ct[n] ~ poisson(exp(xt[n]));
+  }
+}
+'
+
+plot(data$ct,type="l")
+burnin = 1000
+niter = 2000
+fit1 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4,refresh=0)
+
+
+#print(fit1,digits_summary=3)
+postDraws <- extract(fit1)
+res=colMeans(postDraws$xt)
+plot(exp(res),type="l")
+ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct,colour="original"))+geom_line(aes(x=c(1:data$N),y=exp(res),colour="Pred"))
+```
 
 \newpage
 
@@ -43,7 +197,3 @@ where $x_t$ is an AR(1)-process as in a). Implement and estimate the model in St
 ```{r, ref.label=knitr::all_labels(q1==TRUE),echo=TRUE,eval=FALSE}
 ```
 
-\newpage
-# Appendix B : Code Question 2
-```{r, ref.label=knitr::all_labels(q2==TRUE),echo=TRUE,eval=FALSE}
-```

@@ -13,7 +13,7 @@ sigmasq=2
 t=200
 
 tmp=ar1_process(t,mu,0.5,sigmasq)
-#plot(x=seq(1,t),y=tmp)
+plot(x=seq(1,t),y=tmp)
 #ggplot()+geom_line(aes(x=seq(1,t),y=tmp))
 
 x1t=ar1_process(200,10,0.3,2)
@@ -107,35 +107,37 @@ postDraws <- extract(fit1)
 res=colMeans(postDraws$xt)
 plot(exp(res),type="l")
 
-# 
-# theta_data=list(N=length(res), ct=res)
-# 
-# StanModel = '
-# data {
-#   int<lower=0> N;
-#   vector[N] y;
-# }
-# parameters {
-#   real mu;
-#   real <lower=-1,upper=1>phi;
-#   real<lower=0> sigma;
-# }
-# model {
-#   mu~ normal(1,100);
-#   phi~ normal(1,100);
-#   sigma ~ scaled_inv_chi_square(1,2);
-#   for (n in 2:N)
-#     y[n] ~ normal(mu + phi * (y[n-1]-mu), sigma);
-# }
-# '
-# 
-# theta_data = list(N=length(res), y=res)
-# burnin = 1000
-# niter = 2000
-# theta_fit = stan(model_code=StanModel,data=theta_data, warmup=burnin,iter=niter,chains=4)
-# print(theta_fit,digits_summary=3)
-# 
-# test=ar1_process(140,2.806,0.919,0.174)
-# 
-# test=exp(test)
-# plot(rpois(140,test),type="l")
+#
+theta_data=list(N=length(res), ct=res)
+
+StanModel = '
+data {
+  int<lower=0> N;
+  vector[N] y;
+}
+parameters {
+  real mu;
+  real <lower=-1,upper=1>phi;
+  real<lower=0> sigma;
+}
+model {
+  mu~ normal(1,100);
+  phi~ normal(1,100);
+  sigma ~ scaled_inv_chi_square(1,2);
+  for (n in 2:N)
+    y[n] ~ normal(mu + phi * (y[n-1]-mu), sigma);
+    //temp ~ normal(mu + phi * (y[n-1]-mu), sigma);
+    
+}
+'
+
+theta_data = list(N=length(res), y=res)
+burnin = 1000
+niter = 2000
+theta_fit = stan(model_code=StanModel,data=theta_data, warmup=burnin,iter=niter,chains=4)
+print(theta_fit,digits_summary=3)
+
+test=ar1_process(140,3.484,0.926,0.173)
+
+test=exp(test)
+plot(rpois(140,test),type="l")
