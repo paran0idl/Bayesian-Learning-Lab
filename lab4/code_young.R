@@ -194,9 +194,69 @@ for (i in 1:ncol(post_xt)){
   uppers = append(uppers, temp[n*0.975])
 }
 
-plot(data$ct,type="l", main = "Comparing Data and Simulation")
+plot(data$ct,type="l", main = "Comparing Data and Simulation", lwd = 2)
 lines(exp(means), col = "red")
 lines(exp(lowers), col = "blue")
 lines(exp(uppers), col = "blue")
 legend("topright", legend = c("Data", "Theta-mean", "95% C.I,"),
        col = c("black", "red", "blue"), lty = c(1,1,1))
+
+
+
+# 1-d.
+## increased degrees of freedom in simulating sigmasq represents 
+## more informative prior for it. suppose nu = 20 on prior.
+
+StanModel ='
+data {
+  int<lower=0> N;
+  int ct[N];
+}
+parameters {
+  real mu;
+  real <lower=-1,upper=1>phi;
+  real<lower=0> sigma;
+  real xt[N];
+}
+model {
+  mu~ normal(1,100);
+  phi~ normal(1,100);
+  sigma ~ scaled_inv_chi_square(20,2);
+  xt[1]~normal(mu,1);
+  ct[1]~poisson(exp(mu));
+  for (n in 2:N){
+    xt[n]~normal(mu + phi * (xt[n-1]-mu), sqrt(sigma));
+    ct[n] ~ poisson(exp(xt[n]));
+  }
+}
+'
+
+burnin = 1000
+niter = 2000
+fit2 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4)
+print(fit2, digits_summary = 3)
+
+postDraws = extract(fit2)
+post_xt = postDraws$xt
+
+means = c()
+lowers = c()
+uppers = c()
+n = 4000 #number of samples
+
+for (i in 1:ncol(post_xt)){
+  means = append(means, mean(post_xt[,i]))
+  temp = sort(post_xt[,i])
+  lowers = append(lowers, temp[n*0.025])
+  uppers = append(uppers, temp[n*0.975])
+}
+
+plot(data$ct,type="l", main = "Comparing Data and Simulation(Informative Prior)", lwd = 2)
+lines(exp(means), col = "red")
+lines(exp(lowers), col = "blue")
+lines(exp(uppers), col = "blue")
+legend("topright", legend = c("Data", "Theta-mean", "95% C.I,"),
+       col = c("black", "red", "blue"), lty = c(1,1,1))
+### means of posterior thetas are more similar to actual data.
+### 95% credible interval seems wider than before; but such credible
+### interval covers almost all actual data points.
