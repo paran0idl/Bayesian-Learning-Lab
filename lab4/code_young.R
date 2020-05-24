@@ -205,7 +205,7 @@ legend("topright", legend = c("Data", "Theta-mean", "95% C.I,"),
 
 # 1-d.
 ## increased degrees of freedom in simulating sigmasq represents 
-## more informative prior for it. suppose nu = 20 on prior.
+## more informative prior for it. suppose nu = 100 on prior.
 
 StanModel ='
 data {
@@ -221,7 +221,7 @@ parameters {
 model {
   mu~ normal(1,100);
   phi~ normal(1,100);
-  sigma ~ scaled_inv_chi_square(20,2);
+  sigma ~ scaled_inv_chi_square(100,2);
   xt[1]~normal(mu,1);
   ct[1]~poisson(exp(mu));
   for (n in 2:N){
