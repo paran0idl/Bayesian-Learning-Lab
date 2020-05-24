@@ -30,7 +30,7 @@ ar1_process=function(t,mu,phi,sigmasq){
   res=vector(length=t)
   res[1]=mu
   for(i in 2:t){
-    res[i]=mu+phi*(res[i-1]-mu)+rnorm(1,0,sigmasq)
+    res[i]=mu+phi*(res[i-1]-mu)+rnorm(1,0,sqrt(sigmasq))
   }
   return(res)
 }
@@ -71,14 +71,14 @@ data {
 parameters {
   real mu;
   real <lower=-1,upper=1>phi;
-  real<lower=0> sigma;
+  real<lower=0> sigmasq;
 }
 model {
   mu~ normal(1,100);
   phi~ normal(1,100);
-  sigma ~ scaled_inv_chi_square(1,2);
+  sigmasq ~ scaled_inv_chi_square(1,2);
   for (n in 2:N)
-    y[n] ~ normal(mu + phi * (y[n-1]-mu), sigma);
+    y[n] ~ normal(mu + phi * (y[n-1]-mu), sqrt(sigmasq));
 }
 '
 
@@ -89,19 +89,60 @@ niter = 2000
 fit1 = stan(model_code=StanModel,data=data1, warmup=burnin,iter=niter,chains=4,refresh=0)
 fit2 = stan(model_code=StanModel,data=data2, warmup=burnin,iter=niter,chains=4,refresh=0)
 
-print(fit1,digits_summary=3)
-print(fit2,digits_summary=3)
-mu1<- extract(fit1, 'mu')$mu
-mu2<- extract(fit2, 'mu')$mu
-phi1 <- extract(fit1, 'phi')$phi
-phi2 <- extract(fit2, 'phi')$phi
+df1=summary(fit1,probs = c(0.025, 0.975))$summary
+print(df1)
+df2=summary(fit2,probs = c(0.025, 0.975))$summary
+print(df2)
 
-traceplot(fit1)
-traceplot(fit2)
+# phi=0.3
+mu1<- extract(fit1, 'mu')$mu
+cum_mu1 = cumsum(mu1)
+for (i in 1:length(cum_mu1)){
+  cum_mu1[i] = cum_mu1[i]/i
+}
+plot(cum_mu1,main="mu1")
+
+phi1 <- extract(fit1, 'phi')$phi
+cum_phi1 = cumsum(phi1)
+for (i in 1:length(cum_phi1)){
+  cum_phi1[i] = cum_phi1[i]/i
+}
+plot(cum_phi1,main="phi1")
+
+sigmasq1 <- extract(fit1, 'sigmasq')$sigmasq
+cum_sigmasq1 = cumsum(sigmasq1)
+for (i in 1:length(cum_sigmasq1)){
+  cum_sigmasq1[i] = cum_sigmasq1[i]/i
+}
+plot(cum_sigmasq1,main="sigmasq1")
+
+# phi=0.95
+mu2<- extract(fit2, 'mu')$mu
+cum_mu2 = cumsum(mu2)
+for (i in 1:length(cum_mu2)){
+  cum_mu2[i] = cum_mu2[i]/i
+}
+plot(cum_mu2,main="mu2")
+
+phi2 <- extract(fit2, 'phi')$phi
+cum_phi2 = cumsum(phi2)
+for (i in 1:length(cum_phi2)){
+  cum_phi2[i] = cum_phi2[i]/i
+}
+plot(cum_phi2,main="phi2")
+
+sigmasq2 <- extract(fit2, 'sigmasq')$sigmasq
+cum_sigmasq2= cumsum(sigmasq2)
+for (i in 1:length(cum_sigmasq2)){
+  cum_sigmasq2[i] = cum_sigmasq2[i]/i
+}
+plot(cum_sigmasq2,main="sigmasq2")
 
 pairs(extract(fit1, c('mu','phi')))
 pairs(extract(fit2, c('mu','phi')))
 ```
+
+The joint posterior of $\mu$ and $\phi$ are concentrated around parameters' mean. The joint posterior distribution seems normally distributed, since we know the data is simulated using normal distribution, it is possible to conclude that the model constructed for sampling described the data well.
 
 (c) The data campy.dat contain the number of cases of campylobacter infections in the north of the province Quebec (Canada) in four week intervals from January 1990 to the end of October 2000. It has 13 observations per year and 140 observations in total. Assume that the number of infections $c_t$ at each time point follows an independent Poisson distribution when conditioned on a latent AR(1)-process $x_t$, that is 
 $$c_t|x_t \sim Poisson(exp(x_t))$$
@@ -124,31 +165,30 @@ parameters {
 model {
   mu~ normal(1,100);
   phi~ normal(1,100);
-  sigma ~ scaled_inv_chi_square(100,2);
+  sigma ~ scaled_inv_chi_square(20,2);
   xt[1]~normal(mu,1);
   ct[1]~poisson(exp(mu));
   for (n in 2:N){
     xt[n]~normal(mu + phi * (xt[n-1]-mu), sigma);
-    ct[n] ~ poisson(exp(xt[n]|));
+    ct[n] ~ poisson(exp(xt[n]));
   }
 }
 '
 
-plot(data$ct,type="l")
 burnin = 1000
 niter = 2000
 fit1 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4,refresh=0)
 
-
-print(fit1,digits_summary=3)
-postDraws <- extract(fit1)
-
-res=colMeans(postDraws$xt)
-plot(exp(res),type="l")
-plot(rpois(140,exp(res)),type="l")
-##ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct,colour="original"))+geom_line(aes(x=c(1:data$N),y=exp(res),colour="Pred"))
-ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct))+geom_line(aes(x=c(1:data$N),y=rpois(140,exp(res))))
+df=as.data.frame(summary(fit1,probs = c(0.025, 0.975))$summary)
+df=df[c(-1,-2,-3,-144),]
+df$mean=exp(df$mean)
+df$`2.5%`=exp(df$`2.5%`)
+df$`97.5%`=exp(df$`97.5%`)
+ggplot()+geom_line(aes(x=c(1:length(df$mean)),y=df$mean,colour="Posterior mean"))+geom_line(aes(x=c(1:length(df$`2.5%`)),y=df$`2.5%`,colour="Lower"))+geom_line(aes(x=c(1:length(df$`97.5%`)),y=df$`97.5%`,colour="Upper"))+geom_line(aes(x=c(1:length(data$ct)),y=data$ct,colour="Original data"))+xlab("Time")+ylab("Value")
 ```
+
+In this case, $x_t$ should be seen as parameter.
+
 (d) Now, assume that we have a prior belief that the true underlying intensity $\theta_t$ varies more smoothly than the data suggests. Change the prior for $\sigma^2$ so that it becomes informative about that the AR(1)-process increments $\epsilon_t$ should be small. Re-estimate the model using Stan with the new prior and produce the same plot as in c). Has the posterior for $\theta_t$ changed?
 
 ```{r,q1=TRUE,echo=FALSE,message=FALSE, fig.align='center'}
@@ -178,18 +218,20 @@ model {
 }
 '
 
-plot(data$ct,type="l")
 burnin = 1000
 niter = 2000
 fit1 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4,refresh=0)
 
+df=as.data.frame(summary(fit1,probs = c(0.025, 0.975))$summary)
+df=df[c(-1,-2,-3,-144),]
+df$mean=exp(df$mean)
+df$`2.5%`=exp(df$`2.5%`)
+df$`97.5%`=exp(df$`97.5%`)
+ggplot()+geom_line(aes(x=c(1:length(df$mean)),y=df$mean,colour="Posterior mean"))+geom_line(aes(x=c(1:length(df$`2.5%`)),y=df$`2.5%`,colour="Lower"))+geom_line(aes(x=c(1:length(df$`97.5%`)),y=df$`97.5%`,colour="Upper"))+geom_line(aes(x=c(1:length(data$ct)),y=data$ct,colour="Original data"))+xlab("Time")+ylab("Value")
 
-#print(fit1,digits_summary=3)
-postDraws <- extract(fit1)
-res=colMeans(postDraws$xt)
-plot(exp(res),type="l")
-ggplot()+geom_line(aes(x=c(1:data$N),y=data$ct,colour="original"))+geom_line(aes(x=c(1:data$N),y=exp(res),colour="Pred"))
 ```
+
+Increased degrees of freedom in simulating sigmasq represents more informative prior for it. In this question we suppose nu = 20 on prior.Means of posterior thetas are more similar to actual data. 95% credible interval seems wider than before; but such credible interval covers almost all actual data points.
 
 \newpage
 

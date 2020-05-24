@@ -84,13 +84,13 @@ parameters {
   real xt[N];
 }
 model {
-  mu~ normal(1,100);
-  phi~ normal(1,100);
+  mu~ normal(0,100);
+  phi~ normal(0,100);
   sigma ~ scaled_inv_chi_square(1,2);
-  xt[1]~normal(mu,1);
-  ct[1]~poisson(exp(mu));
+  xt[1]~normal(mu,sqrt(sigma));
+  ct[1]~poisson(exp(xt[1]));
   for (n in 2:N){
-    xt[n]~normal(mu + phi * (xt[n-1]-mu), sigma);
+    xt[n]~normal(mu + phi * (xt[n-1]-mu), sqrt(sigma));
     ct[n] ~ poisson(exp(xt[n]));
   }
 }
@@ -105,7 +105,7 @@ fit1 = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4)
 print(fit1,digits_summary=3)
 postDraws <- extract(fit1)
 res=colMeans(postDraws$xt)
-plot(exp(res),type="l")
+plot(rpois(140,exp(res)),type="l")
 
 #
 theta_data=list(N=length(res), ct=res)
@@ -141,3 +141,44 @@ test=ar1_process(140,3.484,0.926,0.173)
 
 test=exp(test)
 plot(rpois(140,test),type="l")
+
+library(rstan) 
+y = c(4,5,6,4,0,2,5,3,8,6,10,8) 
+N = length(y)
+
+StanModel = ' 
+data { 
+int<lower=0> N; // Number of observations 
+int<lower=0> y[N]; // Number of flowers 
+int<lower=0> P; // Number of plants 
+} 
+transformed data { 
+int<lower=0> M; // Number of months 
+M = N / P; 
+} 
+parameters { 
+real mu; 
+real<lower=0> sigma2; 
+real mup[P]; 
+} 
+model { 
+mu ~ normal(0,100); // Normal with mean 0, st.dev. 100 
+sigma2 ~ scaled_inv_chi_square(1,2); // Scaled-inv-chi2 with nu 1, sigma 2 
+for(p in 1:P){ 
+mup[p] ~ lognormal(mu,sqrt(sigma2)); // Log-normal 
+for(m in 1:M) 
+y[M*(p-1)+m] ~ poisson(mup[p]); // Poisson 
+} 
+}
+'
+P=3
+data = list(N=N, y=y, P=P) 
+burnin = 1000 
+niter = 2000 
+fit = stan(model_code=StanModel,data=data, warmup=burnin,iter=niter,chains=4) # Print the fitted model 
+print(fit,digits_summary=3) # Extract posterior samples 
+postDraws <- extract(fit) 
+# Do traceplots of the first chain 
+par(mfrow = c(1,1)) plot(postDraws$mu[1:(niter-burnin)],type="l",ylab="mu",main="Traceplot") 
+# Do automatic traceplots of all chains 
+traceplot(fit)
